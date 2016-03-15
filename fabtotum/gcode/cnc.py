@@ -200,6 +200,8 @@ class CNC(object):
 		
 	def turnSpindleOn(self):
 		"""Turn spindle on."""
+		self.addComment('Finish all moves')
+		self.raw.M400()
 		self.addComment('Turning spindle on')
 		# turn spindle on
 		if self.spindle_direction == CNC.eCW:
@@ -212,6 +214,8 @@ class CNC(object):
 		
 	def turnSpindleOff(self):
 		"""Turn spindle off."""
+		self.addComment('Finish all moves')
+		self.raw.M400()
 		self.addComment('Turning spindle off')
 		# turn spindle off
 		self.raw.M5()

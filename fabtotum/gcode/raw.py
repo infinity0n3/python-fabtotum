@@ -295,8 +295,12 @@ class RAW(object):
     #~ M302 - Allow cold extrudes, or set the minimum extrude S<temperature>.
     #~ M303 - PID relay autotune S<temperature> sets the target temperature. (default target temperature = 150C)
     #~ M304 - Set bed PID parameters P I and D
-    #~ M400 - Finish all moves
     
+    #~ M400 - Finish all moves
+    def M400(self):
+        code = 'M400'
+        self.output.write(code)
+
     #~ M401 - Lower z-probe if present
     def M401(self):
         code = 'M401'
