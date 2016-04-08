@@ -116,7 +116,7 @@ class Output(object):
         self.fd.write(v + '\r\n')
 
 out = Output('output.gcode')
-cnc = Milling2D(out)
+cnc = MillingPCB(out)
 
 cnc.setTravelSpeed(XY=5000, Z=1000)
 cnc.setMillingSpeed(150)

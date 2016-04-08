@@ -41,15 +41,18 @@ except(ImportError):
 
 class ShapelyContext(GerberContext):
 
-    def __init__(self):
+    def __init__(self, ignore_width = False):
         super(ShapelyContext, self).__init__()
         self.figs = []
         self.bounds = ((0,0), (0,0))
         self.origin = (0,0)
         self.size = (0,0)
+        self.ignore_width = ignore_width
+
+    def set_ignore_width(self, ignore_width):
+        self.ignore_width = ignore_width
 
     def set_bounds(self, bounds, new_surface=False):
-        print "set_bounds",bounds
         origin_in_inch = (bounds[0][0], bounds[1][0])
         size_in_inch = (abs(bounds[0][1] - bounds[0][0]),
                         abs(bounds[1][1] - bounds[1][0]))                        
@@ -57,17 +60,18 @@ class ShapelyContext(GerberContext):
         self.origin = origin_in_inch
         self.size = size_in_inch
     
-    #~ def _zero_to_origin(self):
-        #~ print "zero to origin"
-        #~ ofigs = []
-        #~ for f in self.figs:
-            #~ tmp = affinity.translate(f, xoff=-self.origin[0], yoff=-self.origin[1])
-            #~ ofigs.append(tmp)
-        #~ self.figs = ofigs
     def translete(self, xoff, yoff):
         ofigs = []
         for f in self.figs:
             tmp = affinity.translate(f, xoff=xoff, yoff=yoff)
+            ofigs.append(tmp)
+        self.figs = ofigs
+
+    def mirror_x(self, x = 0):
+        ofigs = []
+        center=(x,0,0)
+        for f in self.figs:
+            tmp = affinity.scale(f, xfact=-1, yfact=1,origin=center)
             ofigs.append(tmp)
         self.figs = ofigs
 
@@ -76,12 +80,10 @@ class ShapelyContext(GerberContext):
         if isinstance(line.aperture, Circle):
             width = line.aperture.diameter / 2.0
             #print('*', 'circle', width, line.start, line.end)
-            self.figs.append( LineString([line.start,line.end]).buffer(width, cap_style=1, join_style=1, resolution=8) )
-            #~ self.ctx.set_line_width(width * self.scale[0])
-            #~ self.ctx.set_line_cap(cairo.LINE_CAP_ROUND)
-            #~ self.ctx.move_to(*start)
-            #~ self.ctx.line_to(*end)
-            #~ self.ctx.stroke()
+            if self.ignore_width:
+                self.figs.append( LineString([line.start,line.end]) )
+            else:
+                self.figs.append( LineString([line.start,line.end]).buffer(width, cap_style=1, join_style=1, resolution=8) )
         elif isinstance(line.aperture, Rectangle):
             print("TODO: render line [aperture=rect]")
             #~ points = [self.scale_point(x) for x in line.vertices]
@@ -103,11 +105,11 @@ class ShapelyContext(GerberContext):
         self.figs.append( Point(circle.position).buffer(circle.radius, cap_style=1, join_style=1) )
 
     def _render_rectangle(self, rectangle, color):
-        self.figs.append( box(  rectangle.lower_left[0], 
-                                rectangle.lower_left[1],
-                                rectangle.lower_left[0]+rectangle.width,
-                                rectangle.lower_left[1]+rectangle.height,
-                             ) )
+		self.figs.append( box(  rectangle.lower_left[0], 
+								rectangle.lower_left[1],
+								rectangle.lower_left[0]+rectangle.width,
+								rectangle.lower_left[1]+rectangle.height,
+							 ) )
 
     def _render_obround(self, obround, color):
         c1 = obround.subshapes['circle1']
@@ -129,18 +131,27 @@ class ShapelyContext(GerberContext):
 
     def _merge_polygons(self):
         merge = []
+        lines_only = True
         for fig in self.figs:
+            if fig.geom_type != 'LineString' and \
+               fig.geom_type != 'MultiLineString':
+               lines_only = False
             merge.append(fig)
+            
         for fig in merge:
             self.figs.remove(fig)
-        
-        result = cascaded_union(merge)
-        if result.geom_type == 'Polygon':
+            
+        if lines_only and self.ignore_width:
+            result = linemerge(merge)
+        else:
+            result = cascaded_union(merge)
+
+        if result.geom_type == 'Polygon' or result.geom_type == 'LineString':
             self.figs.append( result )
-        elif result.geom_type == 'MultiPolygon':
+        elif result.geom_type == 'MultiPolygon' or result.geom_type == 'MultiLineString':
             for f in result:
                 self.figs.append(f)
-
+                
     #~ def _render_arc(self, arc, color):
         #~ center = self.scale_point(arc.center)
         #~ start = self.scale_point(arc.start)

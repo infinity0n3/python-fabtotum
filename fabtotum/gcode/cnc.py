@@ -80,6 +80,23 @@ class CNC(object):
 				self.setRelative()
 				
 			self.upType = False
+	
+	def isAt(self, X = None, Y = None, Z = None, E = None):
+		atX = True
+		atY = True
+		atZ = True
+		atE = True
+		
+		if X != None:
+			atX = abs(self.curX - X) < 1e-8
+		if Y != None:
+			atY = abs(self.curY - Y) < 1e-8
+		if Z != None:
+			atZ = abs(self.curZ - Z) < 1e-8
+		if E != None:
+			atE = abs(self.curE - E) < 1e-8
+			
+		return (atX and atY and atZ and atE)
 
 	def addComment(self, comment):
 		"""Add comment."""
@@ -309,10 +326,10 @@ class CNC(object):
 		Z = round(Z, self.decimals)
 		
 		if self.mvType == CNC.eABSOLUTE:
-			self.curZ = rount(Z, self.decimals)
+			self.curZ = Z
 		else:
 			self.curZ += Z
 			
-		print "curZ", self.curZ
+		#print "curZ", self.curZ
 			
 		self.raw.G0(Z=Z, F=F)

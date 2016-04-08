@@ -1,0 +1,23 @@
+Drill report for /home/daniel/Projects/PCB/Router_Board_v1/router_board_v1.kicad_pcb
+Created on Tue 22 Mar 2016 11:12:21 PM CET
+
+Copper Layer Stackup:
+    =============================================================
+    L1 :  F.Cu                      front
+    L2 :  B.Cu                      back
+
+
+Drill file 'router_board_v1.drl' contains
+    plated through holes:
+    =============================================================
+    T1  0.80mm  0.031"  (9 holes)
+    T2  1.02mm  0.040"  (9 holes)
+
+    Total plated holes count 18
+
+
+Drill file 'router_board_v1-NPTH.drl' contains
+    unplated through holes:
+    =============================================================
+
+    Total unplated holes count 0

@@ -1,0 +1,14 @@
+%TF.GenerationSoftware,KiCad,Pcbnew,4.0.1-2.fc23-product*%
+%TF.CreationDate,2016-03-22T23:12:51+01:00*%
+%TF.ProjectId,router_board_v1,726F757465725F626F6172645F76312E,rev?*%
+%TF.FileFunction,Legend,Bot*%
+%FSLAX46Y46*%
+G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
+G04 Created by KiCad (PCBNEW 4.0.1-2.fc23-product) date Tue 22 Mar 2016 11:12:51 PM CET*
+%MOMM*%
+G01*
+G04 APERTURE LIST*
+%ADD10C,0.100000*%
+G04 APERTURE END LIST*
+D10*
+M02*

@@ -118,7 +118,6 @@ class GerberFile(CamFile):
             if stmt.y is not None:
                 min_y = min(stmt.y, min_y)
                 max_y = max(stmt.y, max_y)
-        print "bounds",((min_x, max_x), (min_y, max_y))
         return ((min_x, max_x), (min_y, max_y))
 
     def write(self, filename, settings=None):

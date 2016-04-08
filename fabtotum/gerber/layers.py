@@ -66,7 +66,7 @@ hints = [
          name=['sp02', 'botpaste', 'psb']
          ),
     Hint(layer='outline',
-         ext=['gko', 'outline', ],
+         ext=['gko', 'outline', 'gm1' ],
          name=['BDR', 'border', 'out', ]
          ),
     Hint(layer='ipc_netlist',
@@ -163,6 +163,14 @@ class DrillLayer(PCBLayer):
     def __init__(self, filename=None, cam_source=None, layers=None, **kwargs):
         super(DrillLayer, self).__init__(filename, 'drill', cam_source, **kwargs)
         self.layers = layers if layers is not None else ['top', 'bottom']
+    
+    @property
+    def drills(self):
+        drills = []
+        for d in self.primitives:
+            if d.diameter not in drills:
+                drills.append(d.diameter)
+        return drills
 
 
 class InternalLayer(PCBLayer):
