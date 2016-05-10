@@ -207,13 +207,12 @@ def main():
 		cnc = MillingPCB(out)
 
 		# Start code
-		cnc.setTravelSpeed	(	XY= config['travel-xy-speed'],
-								Z = config['travel-z-speed'])
-		cnc.setMillingSpeed		( config['milling-xy-speed'] )
-		cnc.setDrillSpeed		( config['drilling-z-speed'] )
+		cnc.setTravelSpeed	(XY= config['travel-xy-speed'], Z = config['travel-z-speed'])
+		cnc.setMillingSpeed	( config['cutting-xy-speed'] )
+		cnc.setDrillSpeed	( config['drilling-z-speed'] )
 		cnc.setTravelDistance	( config['travel-height'] )
-		cnc.setPlungeDepth		( config['plunge-depth'] )
-		cnc.setSpindleSpeed		( config['spindle-speed'] )
+		cnc.setPlungeDepth	( config['plunge-depth'] )
+		cnc.setSpindleSpeed	( config['spindle-speed'] )
 		
 		cut_start_depth = 0
 		cut_end_depth = config['pcb-thickness'] + 0.1 #config['cut-depth']
@@ -245,9 +244,9 @@ def main():
 
 		# Cutting holders
 		cnc.addComment('Cutting Holders')
-		if paths:
+		if paths2:
 			i = 1
-			for tlp in paths:
+			for tlp in paths2:
 				cnc.addComment('Path #' + str(i) )
 				i += 1
 				cnc.cutPath(tlp, 

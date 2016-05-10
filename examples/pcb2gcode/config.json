@@ -1,8 +1,8 @@
 {
     "travel-z-speed": 1000, 
     "holder-size": 2.0, 
-    "milling-xy-speed": 80, 
-    "spindle-speed": 15000, 
+    "milling-xy-speed": 150, 
+    "spindle-speed": 14000, 
     "travel-xy-speed": 5000, 
     "mill-bit-diameter": 0.4, 
     "holder-height": 0.8,

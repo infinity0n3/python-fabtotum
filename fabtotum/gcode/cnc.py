@@ -329,6 +329,11 @@ class CNC(object):
 			self.curZ = Z
 		else:
 			self.curZ += Z
+                        
+		if self.curF == F:
+			F = None
+		else:
+			self.curF = F
 			
 		#print "curZ", self.curZ
 			

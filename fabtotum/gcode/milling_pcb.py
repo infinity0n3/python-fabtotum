@@ -243,6 +243,7 @@ class MillingPCB(CNC):
 				cut_depth = cut_end_depth
 			
 			print "cut_depth",cut_depth,"[",cut_step,"]"
+                        self.addComment('Cut-Depth: ' + str(cut_depth) )
 			
 			for i in range(len(x)):
 				X = x[i]
@@ -262,9 +263,12 @@ class MillingPCB(CNC):
 					(rx,ry,rz) = self.convertToRelative(X,Y)
 					self.cutTo(rx,ry, cut_depth)
 			
-			# Reverse the direction for next step
-			x.reverse()
-			y.reverse()
+                        if X != x[0] or Y != y[0]:
+                                self.addComment('Reversing movement')
+                                print "reversing"
+                                # Reverse the direction for next step
+                                x.reverse()
+                                y.reverse()
 
 	def millContures(self, objs):
 		pass
