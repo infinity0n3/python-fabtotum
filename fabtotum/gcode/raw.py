@@ -14,8 +14,7 @@ class RAW(object):
     #~ -------------------
     #~ G0  -> G1
     #~ G1  - Coordinated Movement X Y Z E F, S?
-    def G0(self, X = None, Y = None, Z = None, E = None, F = None):
-        code = 'G0'
+    def G0(self, X = None, Y = None, Z = None, E = None, F = None, code = 'G0'):
         if X != None:
             code += ' X' + str(X)
         if Y != None:
@@ -30,7 +29,7 @@ class RAW(object):
         self.output.write(code)
         
     def G1(self, X = None, Y = None, Z = None, E = None, F = None):
-        self.G0(X, Y, Z, E, F)
+        self.G0(X, Y, Z, E, F, code='G1')
         
     #~ G2  - CW ARC
     # Example: G2 X90.6 Y13.8 I5 J10 E22.4, Move in a CW arc starting from current point to point (X,Y) with center at (X+I, Y+J), extruding 22.4mm of material

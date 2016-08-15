@@ -4,7 +4,7 @@
     "milling-xy-speed": 150, 
     "spindle-speed": 14000, 
     "travel-xy-speed": 5000, 
-    "mill-bit-diameter": 0.4, 
+    "mill-bit-diameter": 0.35, 
     "holder-height": 0.8,
     "cutting-xy-speed": 150, 
     "cut-step": 0.2, 
