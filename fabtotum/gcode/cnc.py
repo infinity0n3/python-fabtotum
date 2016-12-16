@@ -87,14 +87,22 @@ class CNC(object):
         atZ = True
         atE = True
         
+        
+        
         if X != None:
+            X = round(X, self.decimals)
             atX = abs(self.curX - X) < 1e-8
         if Y != None:
+            Y = round(Y, self.decimals)
             atY = abs(self.curY - Y) < 1e-8
         if Z != None:
+            Z = round(Z, self.decimals)
             atZ = abs(self.curZ - Z) < 1e-8
         if E != None:
+            E = round(E, self.decimals)
             atE = abs(self.curE - E) < 1e-8
+        
+        print "isAt? ", X,Y,Z, self.curX, self.curY, self.curZ, (atX and atY and atZ and atE)
             
         return (atX and atY and atZ and atE)
 
@@ -264,13 +272,19 @@ class CNC(object):
             Z = round(Z, self.decimals)
         
         if self.mvType == CNC.eABSOLUTE:
-            self.curX = X
-            self.curY = Y
-            self.curZ = Z
+            if X is not None:
+                self.curX = X
+            if Y is not None:
+                self.curY = Y
+            if Z is not None:
+                self.curZ = Z
         else:
-            self.curX += X
-            self.curY += Y
-            self.curZ += Z
+            if X is not None:
+                self.curX += X
+            if Y is not None:
+                self.curY += Y
+            if Z is not None:
+                self.curZ += Z
         
         if self.curF == F:
             F = None
@@ -295,26 +309,7 @@ class CNC(object):
             Example:
                 >>> cnc.moveToXY(X=10, Y=10, F=1000)
         """
-        X = round(X, self.decimals)
-        Y = round(Y, self.decimals)
-        
-        self.__update()
-        if self.mvType == CNC.eABSOLUTE:
-            self.curX = X
-            self.curY = Y
-        else:
-            self.curX += X
-            self.curY += Y
-
-        if self.curF == F:
-            F = None
-        else:
-            self.curF = F
-        
-        if use_tool:
-            self.raw.G1(X=X, Y=Y, F=F)
-        else:
-            self.raw.G0(X=X, Y=Y, F=F)
+        self.moveToXYZ(X, Y, None, F, use_tool)
         
     def moveToZ(self, Z = None, F = None, use_tool=False):
         """
@@ -328,22 +323,4 @@ class CNC(object):
             Example:
                 >>> cnc.moveToZ(Z=2, F=150)
         """
-        self.__update()
-        
-        Z = round(Z, self.decimals)
-        
-        if self.mvType == CNC.eABSOLUTE:
-            self.curZ = Z
-        else:
-            self.curZ += Z
-                        
-        if self.curF == F:
-            F = None
-        else:
-            self.curF = F
-            
-        #print "curZ", self.curZ
-        if use_tool:
-            self.raw.G1(Z=Z, F=F)
-        else:
-            self.raw.G0(Z=Z, F=F)
+        self.moveToXYZ(None, None, Z, F, use_tool)

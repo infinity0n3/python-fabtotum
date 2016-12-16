@@ -11,7 +11,11 @@ import json
 
 
 ################################ DEBUG #########################################
-from matplotlib import pyplot
+try:
+    from matplotlib import pyplot
+    use_matplot = True
+except:
+    use_matplot = False
 
 BLUE = '#6699cc'
 RED =  '#ff0000'
@@ -31,8 +35,9 @@ def plot_coords(ax, ob):
     x, y = ob.xy
     ax.plot(x, y, 'o', color='#999999', zorder=1)
     
-fig = pyplot.figure(1, figsize=(8,8), dpi=90)
-ax = fig.add_subplot(111)
+if use_matplot:
+    fig = pyplot.figure(1, figsize=(8,8), dpi=90)
+    ax = fig.add_subplot(111)
 ################################################################################
 
 def load_config_from_file(filename):
@@ -83,27 +88,27 @@ def main():
 
     config = {
         # Z tuning
-        'travel-height'    :    2.0,     # Height used for travel moves
-        'cut-depth'        :    1.65,     # Cutting depth
-        'cut-step'        :    0.2,     # Cutting is done in steps if Z
+        'travel-height'     : 2.0,     # Height used for travel moves
+        'cut-depth'         : 1.65,     # Cutting depth
+        'cut-step'          : 0.2,     # Cutting is done in steps if Z
         # V bit
-        'plunge-depth'     :     0.25,
-        'mill-bit-diameter'    : 0.4,    # Milling tool diameter at plunge-depth
+        'plunge-depth'      : 0.25,
+        'mill-bit-diameter' : 0.4,    # Milling tool diameter at plunge-depth
         # Endcut bit
-        'cut-bit-diameter'    : 2.1,    # Cutting tool diameter
+        'cut-bit-diameter'  : 2.1,    # Cutting tool diameter
         # Milling speed
-        'spindle-speed'        : 15000,    # Spindle speed (CW)
-        'milling-xy-speed'    : 80,        # XY speed during milling moves
-        'cutting-xy-speed'        : 150,        # XY speed during cutting moves
-        'drilling-z-speed'        : 50,        # Z speed during drilling moves
-        'travel-xy-speed'    : 5000,        # XY speed during travel moves (at travel height)
+        'spindle-speed'     : 15000,    # Spindle speed (CW)
+        'milling-xy-speed'  : 80,        # XY speed during milling moves
+        'cutting-xy-speed'  : 150,        # XY speed during cutting moves
+        'drilling-z-speed'  : 50,        # Z speed during drilling moves
+        'travel-xy-speed'   : 5000,        # XY speed during travel moves (at travel height)
         'travel-z-speed'    : 1000,        # Z speed for getting to travel height
         # Probe
         'use-continuity-probe'    :    True,
         # Holders
         'use-holders'    : True,    # Skip cutting PCB at some places to keep it in place
         'holder-size'    : 2.0,  # Single holder size
-        'holder-height'    : 0.8,    # Thickness of the holders
+        'holder-height'  : 0.8,    # Thickness of the holders
         # Array (TODO)
         # Rotation (TODO)
         # Markers
@@ -158,13 +163,12 @@ def main():
         cnc = MillingPCB(out)
 
         # Start code
-        cnc.setTravelSpeed    (    XY= config['travel-xy-speed'],
-                                Z = config['travel-z-speed'])
-        cnc.setMillingSpeed        ( config['milling-xy-speed'] )
-        cnc.setDrillSpeed        ( config['drilling-z-speed'] )
-        cnc.setTravelDistance    ( config['travel-height'] )
-        cnc.setPlungeDepth        ( config['plunge-depth'] )
-        cnc.setSpindleSpeed        ( config['spindle-speed'] )
+        cnc.setTravelSpeed    ( XY= config['travel-xy-speed'], Z = config['travel-z-speed'])
+        cnc.setMillingSpeed   ( config['milling-xy-speed'] )
+        cnc.setDrillSpeed     ( config['drilling-z-speed'] )
+        cnc.setTravelHeight ( config['travel-height'] )
+        cnc.setPlungeDepth    ( config['plunge-depth'] )
+        cnc.setSpindleSpeed   ( config['spindle-speed'] )
 
         if config['use-continuity-probe']:
             cnc.zeroZtoTool()
@@ -197,8 +201,8 @@ def main():
     #ax.set_ylim(*yrange)
     #ax.set_yticks(range(*yrange) + [yrange[-1]])
 
-    ax.set_aspect(1)
-    pyplot.show()
+    #~ ax.set_aspect(1)
+    #~ pyplot.show()
 
     # Prepare drilling
     for layer in pcb.drill_layers:
@@ -212,7 +216,7 @@ def main():
                                     Z = config['travel-z-speed'])
             cnc.setMillingSpeed        ( config['milling-xy-speed'] )
             cnc.setDrillSpeed        ( config['drilling-z-speed'] )
-            cnc.setTravelDistance    ( config['travel-height'] )
+            cnc.setTravelHeight    ( config['travel-height'] )
             cnc.setPlungeDepth        ( config['plunge-depth'] )
             cnc.setSpindleSpeed        ( config['spindle-speed'] )
 
@@ -254,7 +258,7 @@ def main():
         cnc.setTravelSpeed    (XY= config['travel-xy-speed'], Z = config['travel-z-speed'])
         cnc.setMillingSpeed    ( config['cutting-xy-speed'] )
         cnc.setDrillSpeed    ( config['drilling-z-speed'] )
-        cnc.setTravelDistance    ( config['travel-height'] )
+        cnc.setTravelHeight    ( config['travel-height'] )
         cnc.setPlungeDepth    ( config['plunge-depth'] )
         cnc.setSpindleSpeed    ( config['spindle-speed'] )
         

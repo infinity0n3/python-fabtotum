@@ -105,11 +105,11 @@ class ShapelyContext(GerberContext):
         self.figs.append( Point(circle.position).buffer(circle.radius, cap_style=1, join_style=1) )
 
     def _render_rectangle(self, rectangle, color):
-		self.figs.append( box(  rectangle.lower_left[0], 
-								rectangle.lower_left[1],
-								rectangle.lower_left[0]+rectangle.width,
-								rectangle.lower_left[1]+rectangle.height,
-							 ) )
+        self.figs.append( box(  rectangle.lower_left[0], 
+                                rectangle.lower_left[1],
+                                rectangle.lower_left[0]+rectangle.width,
+                                rectangle.lower_left[1]+rectangle.height,
+                             ) )
 
     def _render_obround(self, obround, color):
         c1 = obround.subshapes['circle1']
