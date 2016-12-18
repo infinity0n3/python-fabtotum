@@ -26,13 +26,15 @@ if speedups.available:
 
 #~ pcb = gerber.PCB.from_directory('../common/pcb_1/', verbose=True)
 #~ dxf = dxfgrabber.readfile('../common/dxf/dxf_default.dxf')
-font = lff.readfile('/usr/share/librecad/fonts/iso.lff')
+#~ font = lff.readfile('/usr/share/librecad/fonts/iso.lff')
 drawing = Drawing2D()
 #~ drawing.add_layer('Default')
-drawing.add_text(0,0, font, 'Sample Text')
+#~ drawing.add_text( (0,0), Drawing2D.TOP_LEFT, 9, (0,0,0), 'iso', "B" )
 
 #~ drawing.load_from_dxf('../common/dxf/dxf_default.dxf')
 #~ drawing.load_from_dxf('/mnt/projects/external/FABTotum/img2gcode/dxf_sample_laser.dxf')
+drawing.load_from_dxf('/mnt/projects/external/FABTotum/gcode-utils/examples/mtext_fonts.dxf')
+#~ drawing.load_from_dxf('/mnt/projects/external/FABTotum/gcode-utils/examples/mtext.dxf')
 #~ drawing.normalize()
 
 def __sort_elements(elements, sort_list = [], reverse_list = [], use_reverse = False):

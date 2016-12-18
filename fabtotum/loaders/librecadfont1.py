@@ -1,3 +1,4 @@
+import os
 
 class Symbol:
     def __init__(self, char, code):
@@ -47,26 +48,38 @@ class LibreCADFont1(object):
                     self.meta[ data[0] ] = data[1].strip()
                     lastmeta = data[0]
                 elif line[0] == '[':
-                    code = str(line[1:5])
-                    sym = line[7]
-                    symbol = Symbol(sym, code)
+                    if line[1] == '#':
+                        code = str(line[2:6])
+                        code_num = int(code, 16)
+                        sym = unichr(code_num)
+                        symbol = Symbol(sym, code)
+                    else:
+                        code = str(line[1:5])
+                        sym = line[7]
+                        symbol = Symbol(sym, code)
                 else:
                     if symbol:
                         points = []
                         segments = line.strip().split(';')
+                        skip = False
                         for seg in segments:
                             if seg[0] == 'C':
                                 ref = seg[1:5]
-                                #~ print "    ref", ref
-                                symbol.ref = ref
+                                code_num = int(ref, 16)
+                                sym = unichr(code_num)
+                                symbol.ref = sym
+                                skip = True
+                                break
+                                
                             else:
                                 pts = seg.split(',')
                                 if len(pts) == 3:
                                     points.append( (float(pts[0]), float(pts[1]), float(pts[2][1:])) )
                                 else:
                                     points.append( (float(pts[0]), float(pts[1])) )
-                                        
-                        symbol.lines.append( points )
+                        if not skip:
+                            symbol.lines.append( points )
+                            
         print self.meta
 
 def readfile(filename):
@@ -74,5 +87,8 @@ def readfile(filename):
     Create a LibreCADFont1 object and load it's data from a file.
     """
     lff = LibreCADFont1()
-    lff.load_from_file(filename)
-    return lff
+    if os.path.exists(filename):
+        lff.load_from_file(filename)
+        return lff
+    else:
+        return None

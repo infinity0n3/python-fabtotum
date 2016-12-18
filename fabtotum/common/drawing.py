@@ -25,6 +25,7 @@ __version__ = "1.0"
 # Import external modules
 import numpy as np
 from fabtotum.loaders import dxfgrabber
+import fabtotum.loaders.librecadfont1 as lff
 
 class Layer2D(object):
     def __init__(self, name, color = 255):
@@ -43,8 +44,20 @@ class Drawing2D(object):
        - filled polyline
     """
     
+    # Text attachment point.
+    TOP_LEFT = 1
+    TOP_CENTER = 2
+    TOP_RIFGR = 3
+    MIDDLE_LEFT = 4
+    MIDDLE_CENTER = 5
+    MIDDLE_RIGHT = 6
+    BOTTOM_LEFT = 7
+    BOTTOM_CENTER = 8
+    BOTTOM_RIGHT = 9
+    
     def __init__(self):
         self.clear()
+        self.fonts = {}
         self.add_layer(name='Default', color=7)
     
     def extend_bounds(self, points):
@@ -71,6 +84,19 @@ class Drawing2D(object):
                 
             if pt[1] < self.min_y:
                 self.min_y = pt[1]
+    
+    def get_font(self, font):
+        filename = '/usr/share/librecad/fonts/{0}.lff'.format(font)
+        
+        print "loading font", filename
+        
+        if font not in self.fonts:    
+            f = lff.readfile(filename)
+            if f:
+                self.fonts[font] = f
+            return f
+        else:
+            return self.fonts[font]       
     
     def add_layer(self, name = None, color = 7):
         """
@@ -118,8 +144,8 @@ class Drawing2D(object):
                 b = bulges[idx]
                 if b != 0:
                     # Construct and arc
-                    center, radius, start, end = self.__bulge2arc(p0, pt, b)
-                    arc = self.__arc(center, radius, start, end, step = 10.0, reverse=(b<0))
+                    center, radius, start, end, reverse = self.__bulge2arc(p0, pt, b)
+                    arc = self.__arc(center, radius, start, end, step = 10.0, reverse=reverse)
                     
                     points2 += arc
                 else:
@@ -143,6 +169,7 @@ class Drawing2D(object):
         start = 0.0
         end = 0.0
         radius = 0.0
+        reverse = False
         theta_half = 2*np.arctan(b) 
         
         dx = p2[0] - p1[0]
@@ -163,7 +190,6 @@ class Drawing2D(object):
 
         if b < 0:
             # CW, flip start end
-            print "(list c (angle c p1) (angle c p2) (abs r))"
             
             theta = 2*theta_half
 
@@ -177,9 +203,9 @@ class Drawing2D(object):
             
             end = B
             start = A
+            reverse = True
         else:
             # CCW
-            print "(list c (angle c p2) (angle c p1) (abs r))"
             
             theta = 2*theta_half
 
@@ -191,9 +217,7 @@ class Drawing2D(object):
             start = np.rad2deg( a1 ) - 180
             end = start + np.rad2deg( theta )
         
-        print "start:", start, "end:", end
-        
-        return center, radius, start, end
+        return center, radius, start, end, reverse
     
     def add_circle(self, center, radius, layer = 0, filled = False):
         points = self.__circle(center, radius)
@@ -226,21 +250,47 @@ class Drawing2D(object):
         self.layers[layer].addPrimitive(data)
         self.extend_bounds(points)
     
-    def add_text(self, x, y, font, text, layer = 0):
+    def add_text(self, position, align, height, direction, font_name, text, layer = 0):
+        # TODO:
+        # - alignment
+        # - direction
+        # - height
+        # - new line
+        #~ font_name = 'OpenGostTypeA-Regular'
+        #~ font_name = 'iso'
+        font = self.get_font(font_name)
+        
+        if not font:
+            print "Font '{0}' not found".format(font_name)
+            return
+        
         wordSpacing = float(font.meta['WordSpacing'])
         letterSpacing = float(font.meta['LetterSpacing'])
+        letterHeight = 0
         
-        off_x = x
-        off_y = y
-        max_x = x
-        max_y = y
+        off_x = position[0]
+        off_y = position[1]
+        max_x = off_x
+        max_y = off_y
         
         for c in text:
             if c == ' ':
                 off_x += wordSpacing
+            elif c == '\r' or c == '\n':
+                off_x += letterHeight
             else:
                 sym = font.getSymbol(c)
-                for line in sym.lines:
+                # TODO: load reference character
+                if sym.ref:
+                    #~ print "has ref to '{0}'".format(sym.ref)
+                    sym_ref = font.getSymbol(sym.ref)
+                    lines = sym_ref.lines + sym.lines
+                else:
+                    lines = sym.lines
+                cnt = 0
+                
+                for line in lines:
+                    eat_one = True
                     points = []
                     bulges = []
                     for pt in line:
@@ -253,12 +303,20 @@ class Drawing2D(object):
                             bulges.append(pt[2])
                         else:
                             if len(points) > 0:
-                                bulges.append(0.0)
+                                if eat_one:
+                                    eat_one = False
+                                    pass
+                                else:
+                                    bulges.append(0.0)
                         
                         max_x = max(x, max_x)
                         max_y = max(y, max_y)
-                    self.add_polyline(points, bulges, layer=layer)
                     
+                    if eat_one == False:
+                        bulges.append(0.0)
+                            
+                    self.add_polyline(points, bulges, layer=layer)
+                   
                 off_x = max_x + letterSpacing
     
     def __ellipse_point(self, center, r1, r2, rotM, t):
@@ -366,6 +424,15 @@ class Drawing2D(object):
     def __arc(self, center, radius, start, end, step = 10.0, reverse=False):
         """
         Draw an arc.
+        
+        :param center: Tuple (x,y) representing the arc center point
+        :param radius: Arc radius
+        :param start: Arc start angle (degree)
+        :param end: Arc end angle (degree)
+        :param step: Angle change step
+        :param reverse: Reverse arc points
+        
+        :returns: Arc points
         """
         x0 = center[0]
         y0 = center[1]
@@ -509,14 +576,12 @@ class Drawing2D(object):
                 
                 if t == 'polyline' or t == 'spline':
                     pass
-                    #~ points = []
-                    #~ for p in e['points']:
-                        #~ points.append( ( (ox + p[0])*sx, (oy + p[1])*sy) )
-                    #~ e['points'] = points
+
                 elif t == 'circle' or t == 'arc':
                     p = e['center']
                     e['center'] = ( (ox + p[0])*sx, (oy + p[1])*sy)
                     e['radius'] *= (sx+sy) / 2.0
+                    
                 elif t == 'ellipse':
                     p = e['center']
                     e['center'] = ( (ox + p[0])*sx, (oy + p[1])*sy)
@@ -617,6 +682,9 @@ class Drawing2D(object):
                 
             elif t == 'SPLINE':
                 self.add_spline(e.control_points, e.knots, e.degree, layer_map[e.layer])
+            
+            elif t == 'MTEXT':
+                self.add_text(e.insert, e.attachment_point, e.height, e.xdirection, e.font, e.raw_text, layer=layer_map[e.layer])
 
     #~ def optimize(self):
         #~ for l in self.layers:
