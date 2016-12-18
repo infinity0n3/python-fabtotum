@@ -142,6 +142,9 @@ class Milling(CNC):
         self.stopMilling()
     
     def millPolyline(self, points, reverse = False):        
+        if not points:
+            return
+            
         if reverse:                
             p0 = points[-1]
             x0 = p0[0]

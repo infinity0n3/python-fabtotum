@@ -101,8 +101,6 @@ class CNC(object):
         if E != None:
             E = round(E, self.decimals)
             atE = abs(self.curE - E) < 1e-8
-        
-        print "isAt? ", X,Y,Z, self.curX, self.curY, self.curZ, (atX and atY and atZ and atE)
             
         return (atX and atY and atZ and atE)
 

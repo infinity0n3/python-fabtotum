@@ -1,7 +1,7 @@
 #!/bin/env python2
 
-from fabtotum import gerber
-from fabtotum.gerber.render import *
+from fabtotum.loaders import gerber
+from fabtotum.loaders.gerber.render import *
 from fabtotum.toolpath import *
 from fabtotum.gcode import *
 

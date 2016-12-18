@@ -24,7 +24,7 @@ __version__ = "1.0"
 
 # Import external modules
 import numpy as np
-from fabtotum import dxfgrabber
+from fabtotum.loaders import dxfgrabber
 
 class Layer2D(object):
     def __init__(self, name, color = 255):
@@ -44,15 +44,13 @@ class Drawing2D(object):
     """
     
     def __init__(self):
-        self.primitives = []
-        self.layers = []
-        self.max_x = 0
-        self.max_y = 0
-        self.min_x = 0
-        self.min_y = 0
+        self.clear()
+        self.add_layer(name='Default', color=7)
     
     def extend_bounds(self, points):
-        
+        """
+        Extend boundries to fit the points.
+        """
         if type(points) is list:
             pass
         elif type(points) is tuple:
@@ -74,11 +72,14 @@ class Drawing2D(object):
             if pt[1] < self.min_y:
                 self.min_y = pt[1]
     
-    def add_layer(self, name = None, color = 255):
+    def add_layer(self, name = None, color = 7):
+        """
+        Add a new layer.
+        """
         idx = len(self.layers)
         if name is None:
             name = 'Layer_{0}'.format(idx)
-        #data = {'name' : name, 'primitives' : [], 'color' : color}
+
         layer = Layer2D(name, color)
         self.layers.append(layer)
         return idx
@@ -101,13 +102,99 @@ class Drawing2D(object):
         self.extend_bounds(start)
         self.extend_bounds(end)
         
-    def add_polyline(self, points, closed = False, layer = 0, filled = False):
+    def add_polyline(self, points, bulges, closed = False, layer = 0, filled = False):        
+
         if closed:
             points.append(points[0])
-        data = { 'type' : 'polyline', 'points' : points, 'closed' : closed, 'filled' : filled }
+        
+        points2 = []
+        
+        cnt = 0
+        
+        idx = 0
+        has_prev = False
+        for pt in points:
+            if has_prev:
+                b = bulges[idx]
+                if b != 0:
+                    # Construct and arc
+                    center, radius, start, end = self.__bulge2arc(p0, pt, b)
+                    arc = self.__arc(center, radius, start, end, step = 10.0, reverse=(b<0))
+                    
+                    points2 += arc
+                else:
+                    # Use a straight line 
+                    points2.append(pt)
+                    
+                idx += 1
+            else:
+                points2.append(pt)
+                
+            p0 = pt
+            has_prev = True
+            
+        data = { 'type' : 'polyline', 'points' : points2, 'bulges' : bulges, 'closed' : closed, 'filled' : filled }
+        
         self.layers[layer].addPrimitive(data)
         self.extend_bounds(points)
+    
+    def __bulge2arc(self, p1, p2, b):
+        center = (0,0)
+        start = 0.0
+        end = 0.0
+        radius = 0.0
+        theta_half = 2*np.arctan(b) 
         
+        dx = p2[0] - p1[0]
+        dy = p2[1] - p1[1]
+
+        chord = np.sqrt(dx * dx + dy* dy)
+
+        dx_norm = dx / chord
+        dy_norm = dy / chord
+        
+        radius = chord / (2*np.sin(theta_half))
+        
+        p3 = ( p1[0] + dx*0.5, p1[1] + dy*0.5 )
+        
+        x = np.cos(theta_half) * radius
+
+        center = ( p3[0] - dy_norm*x, p3[1] + dx_norm*x )
+
+        if b < 0:
+            # CW, flip start end
+            print "(list c (angle c p1) (angle c p2) (abs r))"
+            
+            theta = 2*theta_half
+
+            dx = center[0] - p2[0]
+            dy = center[1] - p2[1]
+            
+            a1 = np.arctan2(dy,dx)
+
+            A = np.rad2deg( a1 )
+            B = A - np.rad2deg( theta )
+            
+            end = B
+            start = A
+        else:
+            # CCW
+            print "(list c (angle c p2) (angle c p1) (abs r))"
+            
+            theta = 2*theta_half
+
+            dx = center[0] - p1[0]
+            dy = center[1] - p1[1]
+            
+            a1 = np.arctan2(dy,dx)
+
+            start = np.rad2deg( a1 ) - 180
+            end = start + np.rad2deg( theta )
+        
+        print "start:", start, "end:", end
+        
+        return center, radius, start, end
+    
     def add_circle(self, center, radius, layer = 0, filled = False):
         points = self.__circle(center, radius)
         data = { 'type' : 'circle', 'center' : center, 'radius' : radius, 'points' : points, 'filled' : filled }
@@ -130,16 +217,49 @@ class Drawing2D(object):
         points = self.__rbspline(npts, k, p1, control_points, knots)
         
         data = { 'type' : 'spline', 'control_points' : control_points, 'knots' : knots, 'degree' : degree, 'points' : points}
-        #~ self.primitives.append(data)
         self.layers[layer].addPrimitive(data)
         self.extend_bounds(points)
     
     def add_ellipse(self, center, major_axis, ratio, start, end, layer = 0, filled = False):
         points = self.__ellipse(center, major_axis, ratio, start, end)
         data = { 'type' : 'ellipse', 'center' : center, 'major_axis' : major_axis, 'ratio' : ratio, 'start' : start, 'end' : end, 'points' : points, 'filled' : filled}
-        #~ self.primitives.append(data)
         self.layers[layer].addPrimitive(data)
         self.extend_bounds(points)
+    
+    def add_text(self, x, y, font, text, layer = 0):
+        wordSpacing = float(font.meta['WordSpacing'])
+        letterSpacing = float(font.meta['LetterSpacing'])
+        
+        off_x = x
+        off_y = y
+        max_x = x
+        max_y = y
+        
+        for c in text:
+            if c == ' ':
+                off_x += wordSpacing
+            else:
+                sym = font.getSymbol(c)
+                for line in sym.lines:
+                    points = []
+                    bulges = []
+                    for pt in line:
+                        x = pt[0] + off_x
+                        y = pt[1] + off_y
+                        p1 = (x, y)
+                        points.append(p1)
+                        
+                        if len(pt) == 3:
+                            bulges.append(pt[2])
+                        else:
+                            if len(points) > 0:
+                                bulges.append(0.0)
+                        
+                        max_x = max(x, max_x)
+                        max_y = max(y, max_y)
+                    self.add_polyline(points, bulges, layer=layer)
+                    
+                off_x = max_x + letterSpacing
     
     def __ellipse_point(self, center, r1, r2, rotM, t):
         x1 = r1 * np.cos( np.radians(t) )
@@ -196,17 +316,13 @@ class Drawing2D(object):
             x2,y2 = self.__ellipse_point(center, r1, r2, rotM, t)
 
             points.append( (x2,y2) )
-
-            #if have_prev:
-                #self.draw_line(x1,y1, x2,y2)
-            
+                        
             x1 = x2
             y1 = y2
             have_prev = True
 
         x2,y2 = self.__ellipse_point(center, r1, r2, rotM, end)
         points.append( (x2,y2) )
-        #self.draw_line(x1,y1, x2,y2)
         
         return points
         
@@ -227,8 +343,6 @@ class Drawing2D(object):
             y2 = y0 + np.sin(angle)*r
             
             points.append( (x2,y2) )
-            #~ if have_prev:
-                #~ self.draw_line(x1,y1, x2,y2, color)
 
             x1 = x2
             y1 = y2
@@ -239,12 +353,17 @@ class Drawing2D(object):
             x2 = x0 + np.cos(angle)*r
             y2 = y0 + np.sin(angle)*r
             
-            #~ self.draw_line(x1,y1, x2,y2, color)
             points.append( (x2,y2) )
             
         return points
-        
-    def __arc(self, center, radius, start, end, step = 10.0):
+    
+    def __wrapTo360(self, angle):
+        angle = np.fmod(angle,360);
+        if angle < 0:
+            angle += 360;
+        return angle;
+    
+    def __arc(self, center, radius, start, end, step = 10.0, reverse=False):
         """
         Draw an arc.
         """
@@ -252,33 +371,40 @@ class Drawing2D(object):
         y0 = center[1]
         points = []
         r = radius
-        angle = end - start
-        if angle < 0:
-            angle += 360
+        angle = self.__wrapTo360(end - start)
         
         steps = int(abs(angle / step))
 
         have_prev = False
         
+        start = self.__wrapTo360(start)
+        end = self.__wrapTo360(end)
+        
+        a1 = start
+        a2 = end
+        sign = 1
+        
+        if reverse:
+            a1 = end
+            a2 = start
+            sign = -1
+        
         for a in xrange(steps):
-            angle = np.deg2rad(start + a*step)
+            angle = np.deg2rad(a1 + sign*a*step)
             x2 = x0 + np.cos(angle)*r
             y2 = y0 + np.sin(angle)*r
             
-            #~ if have_prev:
-                #~ self.draw_line(x1,y1, x2,y2, color)
             points.append( (x2,y2) )
 
             x1 = x2
             y1 = y2
             have_prev = True
             
-        if (start + (steps-1)*step) != end:
-            angle = np.deg2rad(end)
+        if (a1 + sign*(steps-1)*step) != a2:
+            angle = np.deg2rad(a2)
             x2 = x0 + np.cos(angle)*r
             y2 = y0 + np.sin(angle)*r
             
-            #~ self.draw_line(x1,y1, x2,y2, color)
             points.append( (x2,y2) )
             
         return points
@@ -423,7 +549,6 @@ class Drawing2D(object):
             sx = sy
 
         self.scale(sx, sy)
-        
 
     def normalize(self, margin = 0.1):
         self.transform(1.0, 1.0, -self.min_x+margin, -self.min_y+margin)
@@ -436,8 +561,21 @@ class Drawing2D(object):
         self.max_x = width
         self.max_y = height
 
-    def load_from_dxf(self, filename):
+    def clear(self):
+        """
+        Clear all values.
+        """
+        self.layers = []
+        self.max_x = 0
+        self.max_y = 0
+        self.min_x = 0
+        self.min_y = 0
+
+    def load_from_dxf(self, filename, clear=True):
         dxf = dxfgrabber.readfile(filename)
+        
+        if clear:
+            self.clear()
             
         layer_map = {}
 
@@ -455,15 +593,15 @@ class Drawing2D(object):
         for o in dxf.objects:
             print o
 
-        #~ print "- Entries:"
+        print "- Entries:"
         for e in dxf.entities:
             t = e.dxftype
-            #~ print "== ", t
+            print "== ", t
             if t == 'LWPOLYLINE' or t == 'POLYLINE':
                 is_closed = False
                 if e.is_closed:
                     is_closed = True
-                self.add_polyline(e.points, is_closed, layer_map[e.layer])
+                self.add_polyline(e.points, e.bulge, is_closed, layer_map[e.layer])
                 
             elif t == 'LINE':
                 self.add_line(e.start, e.end, layer_map[e.layer])

@@ -1,10 +1,11 @@
 #!/usr/bin/env python2
 
-from fabtotum import gerber
-from fabtotum.gerber.render import *
+from fabtotum.loaders import gerber
+from fabtotum.loaders.gerber.render import *
 from fabtotum.toolpath import *
 from fabtotum.gcode import *
 from fabtotum.common import *
+import fabtotum.loaders.librecadfont1 as lff
 
 import numpy as np
 
@@ -25,9 +26,14 @@ if speedups.available:
 
 #~ pcb = gerber.PCB.from_directory('../common/pcb_1/', verbose=True)
 #~ dxf = dxfgrabber.readfile('../common/dxf/dxf_default.dxf')
+font = lff.readfile('/usr/share/librecad/fonts/iso.lff')
 drawing = Drawing2D()
-drawing.load_from_dxf('../common/dxf/dxf_default.dxf')
-drawing.normalize()
+#~ drawing.add_layer('Default')
+drawing.add_text(0,0, font, 'Sample Text')
+
+#~ drawing.load_from_dxf('../common/dxf/dxf_default.dxf')
+#~ drawing.load_from_dxf('/mnt/projects/external/FABTotum/img2gcode/dxf_sample_laser.dxf')
+#~ drawing.normalize()
 
 def __sort_elements(elements, sort_list = [], reverse_list = [], use_reverse = False):
     
@@ -108,7 +114,10 @@ cnc.setAbsolute()
 cnc.spindleON()
 
 elements = drawing.layers[0].primitives
-idx_list, rev_list = __sort_elements(drawing.layers[0].primitives, use_reverse=True)
+#~ idx_list, rev_list = __sort_elements(drawing.layers[0].primitives, use_reverse=True)
+#~ idx_list, rev_list = __sort_elements(drawing.layers[0].primitives, use_reverse=True)
+idx_list = range(len(elements))
+rev_list = []
 
 #for p in drawing.layers[0].primitives:
 for i in idx_list:
