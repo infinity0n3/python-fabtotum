@@ -122,7 +122,7 @@ class ShapelyContext(GerberContext):
         pass
 
     def _render_drill(self, primitive, color):
-        print("TODO: render drill")
+        #~ print("TODO: render drill")
         pass
 
     def _render_test_record(self, primitive, color):
@@ -227,15 +227,15 @@ class ShapelyContext(GerberContext):
         #~ self.ctx.scale(1, -1)
 #~ 
     def _new_render_layer(self, color=None, mirror=False):
-        print("_new_render_layer")
+        #~ print("_new_render_layer")
         pass
 #~ 
     def _flatten(self):
-        print("Optimizing")
-        print("* Merge polygons")
+        #~ print("Optimizing")
+        #~ print("* Merge polygons")
         self._merge_polygons()
         #self._zero_to_origin()
 #~ 
     def _paint_background(self, force=False):
-        print("_paint_background")
+        #~ print("_paint_background")
         pass

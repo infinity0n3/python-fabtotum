@@ -83,6 +83,10 @@ def main():
     parser.add_argument('-C', metavar='<file>', dest='config_file',
                         default="config.json",
                         help='Load configuration from file.')
+                        
+    parser.add_argument('-d', dest='debug',
+                        action='store_true',
+                        help='Show debug info.')
     
     app_args = parser.parse_args()
 
@@ -98,11 +102,14 @@ def main():
         'cut-bit-diameter'  : 2.1,    # Cutting tool diameter
         # Milling speed
         'spindle-speed'     : 15000,    # Spindle speed (CW)
-        'milling-xy-speed'  : 80,        # XY speed during milling moves
+        'milling-xy-speed'  : 300,        # XY speed during milling moves
+        'milling-xy-speed1'  : 150,        # XY speed during milling moves
         'cutting-xy-speed'  : 150,        # XY speed during cutting moves
         'drilling-z-speed'  : 50,        # Z speed during drilling moves
         'travel-xy-speed'   : 5000,        # XY speed during travel moves (at travel height)
         'travel-z-speed'    : 1000,        # Z speed for getting to travel height
+        'milling-start-pause' : 1000,       # Pause after plunging the milling bit into the material
+        'number-of-passes'  : 2,        # Number of milling passes for each conture
         # Probe
         'use-continuity-probe'    :    True,
         # Holders
@@ -114,7 +121,8 @@ def main():
         # Markers
         'markers' : [(70,23), (70,177), (164,177), (164,23)],
         # PCB
-        'pcb-thickness' : 1.6
+        'pcb-thickness' : 1.6,
+        'flip-top-bottom' : False
     }
 
     # Generate default config file
@@ -140,15 +148,23 @@ def main():
         layer.cam_source.render( shp )
         layer_shape[layer.layer_class] = shp
         
-        if layer.layer_class == 'bottom':
+        if (layer.layer_class == 'bottom' and config['flip-top-bottom'] == False) or (layer.layer_class == 'top' and config['flip-top-bottom'] == True):
+            shp.mirror_x()
+        elif layer.layer_class == 'drill':
             shp.mirror_x()
         elif layer.layer_class == 'outline':
             shp.set_ignore_width(True)
-            shp_m = ShapelyContext()
-            shp_m.set_ignore_width(True)
-            layer.cam_source.render( shp_m )
-            layer_shape[layer.layer_class+'_mirror'] = shp_m
-
+            #~ if config['flip-top-bottom']:
+            shp.mirror_x()
+                
+            #~ shp_m = ShapelyContext()
+            #~ shp_m.set_ignore_width(True)
+            #~ layer.cam_source.render( shp_m )
+            #~ shp_m.mirror_x()
+            #~ layer_shape[layer.layer_class+'_mirror'] = shp_m
+    
+    print "layers", layer_shape
+    
     # Prepare copper layer milling
     idx=0
     for layer in pcb.copper_layers:
@@ -169,6 +185,7 @@ def main():
         cnc.setTravelHeight ( config['travel-height'] )
         cnc.setPlungeDepth    ( config['plunge-depth'] )
         cnc.setSpindleSpeed   ( config['spindle-speed'] )
+        cnc.setMillingStartPause ( config['milling-start-pause'] )
 
         if config['use-continuity-probe']:
             cnc.zeroZtoTool()
@@ -177,16 +194,24 @@ def main():
         cnc.setAbsolute()
         cnc.spindleON()
 
+        np = config['number-of-passes']
         # Milling code
         if paths:
             i = 1
             for tlp in paths:
                 cnc.addComment('Path #' + str(i) )
                 i += 1
-                cnc.millPath(tlp)
+                is_first = True
+                for p in xrange(np):
+                    if is_first:
+                        cnc.millPath(tlp, feedrate=config['milling-xy-speed1'])
+                        is_first = False
+                    else:
+                        cnc.millPath(tlp)
                 
-                plot_line(ax, tlp, color=colors[idx])
-                #~ plot_coords(ax, tlp)
+                if use_matplot:
+                    plot_line(ax, tlp, color=colors[idx])
+                    #~ plot_coords(ax, tlp)
 
         # End code
         cnc.stopMilling()
@@ -194,15 +219,16 @@ def main():
         
         idx += 1
 
-    #~ xrange = [shapes.bounds[1][0],shapes.bounds[0][0]]
-    #~ yrange = [shapes.bounds[1][1],shapes.bounds[0][1]]
-    #ax.set_xlim(*xrange)
-    #ax.set_xticks(range(*xrange) + [xrange[-1]])
-    #ax.set_ylim(*yrange)
-    #ax.set_yticks(range(*yrange) + [yrange[-1]])
-
-    #~ ax.set_aspect(1)
-    #~ pyplot.show()
+    if use_matplot:
+        #~ xrange = [shapes.bounds[1][0],shapes.bounds[0][0]]
+        #~ yrange = [shapes.bounds[1][1],shapes.bounds[0][1]]
+        #~ ax.set_xlim(*xrange)
+        #~ ax.set_xticks(range(*xrange) + [xrange[-1]])
+        #~ ax.set_ylim(*yrange)
+        #~ ax.set_yticks(range(*yrange) + [yrange[-1]])
+        pass
+        #~ ax.set_aspect(1)
+        #~ pyplot.show()
 
     # Prepare drilling
     for layer in pcb.drill_layers:
@@ -238,6 +264,40 @@ def main():
             cnc.stopMilling()
             cnc.spindleOFF()
 
+    # Prepare drilling (mirrored)
+    for layer in pcb.drill_layers:
+        for drill in layer.drills:
+            out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_'+str(drill)+'_mirror.gcode')
+            
+            cnc = MillingPCB(out)
+
+            # Start code
+            cnc.setTravelSpeed    (    XY= config['travel-xy-speed'],
+                                    Z = config['travel-z-speed'])
+            cnc.setMillingSpeed        ( config['milling-xy-speed'] )
+            cnc.setDrillSpeed        ( config['drilling-z-speed'] )
+            cnc.setTravelHeight    ( config['travel-height'] )
+            cnc.setPlungeDepth        ( config['plunge-depth'] )
+            cnc.setSpindleSpeed        ( config['spindle-speed'] )
+
+            if config['use-continuity-probe']:
+                cnc.zeroZtoTool()
+            
+            cnc.zeroAll()
+            cnc.setAbsolute()
+            cnc.spindleON()
+            
+            # Drilling
+            cnc.addComment('Drill ' + str(drill) + 'mm' )
+            for hole in layer.primitives:
+                if hole.diameter == drill:
+                    p = hole.position
+                    cnc.drillAt(X=-p[0], Y=p[1])
+            
+            # End code
+            cnc.stopMilling()
+            cnc.spindleOFF()
+
     # Prepare cutting
     for layer in pcb.outline_layers:
         out = GCodeOutput(app_args.output+'/'+layer.layer_class+'.gcode')
@@ -263,7 +323,8 @@ def main():
         cnc.setSpindleSpeed    ( config['spindle-speed'] )
         
         cut_start_depth = 0
-        cut_end_depth = config['pcb-thickness'] + 0.1 #config['cut-depth']
+        #~ cut_end_depth = config['pcb-thickness'] + 0.1 #config['cut-depth']
+        cut_end_depth = config['cut-depth']
         
         if config['use-holders']:
             #cnc.setCutDepth( config['cut-depth'] - config['holder-height'])
@@ -292,15 +353,16 @@ def main():
                 cnc.cutPath(tlp, cut_end_depth=cut_end_depth)
 
         # Cutting holders
-        cnc.addComment('Cutting Holders')
-        if paths2:
-            i = 1
-            for tlp in paths2:
-                cnc.addComment('Path #' + str(i) )
-                i += 1
-                cnc.cutPath(tlp, 
-                    cut_start_depth=holder_cut_start_depth,
-                    cut_end_depth=holder_cut_end_depth)
+        if config['use-holders']:
+            cnc.addComment('Cutting Holders')
+            if paths2:
+                i = 1
+                for tlp in paths2:
+                    cnc.addComment('Path #' + str(i) )
+                    i += 1
+                    cnc.cutPath(tlp, 
+                        cut_start_depth=holder_cut_start_depth,
+                        cut_end_depth=holder_cut_end_depth)
         
         # End code
         cnc.stopMilling()

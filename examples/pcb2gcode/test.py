@@ -29,13 +29,14 @@ if speedups.available:
 #~ font = lff.readfile('/usr/share/librecad/fonts/iso.lff')
 drawing = Drawing2D()
 #~ drawing.add_layer('Default')
-#~ drawing.add_text( (0,0), Drawing2D.TOP_LEFT, 9, (0,0,0), 'iso', "B" )
+#~ drawing.add_text( (0,0), Drawing2D.TOP_LEFT, 9, (0,0,0), 'iso', "Q" )
 
 #~ drawing.load_from_dxf('../common/dxf/dxf_default.dxf')
 #~ drawing.load_from_dxf('/mnt/projects/external/FABTotum/img2gcode/dxf_sample_laser.dxf')
-drawing.load_from_dxf('/mnt/projects/external/FABTotum/gcode-utils/examples/mtext_fonts.dxf')
-#~ drawing.load_from_dxf('/mnt/projects/external/FABTotum/gcode-utils/examples/mtext.dxf')
-#~ drawing.normalize()
+#~ drawing.load_from_dxf('/mnt/projects/external/FABTotum/gcode-utils/examples/mtext_fonts.dxf')
+#~ drawing.load_from_dxf('/mnt/projects/external/FABTotum/gcode-utils/examples/mtext_45deg.dxf')
+drawing.load_from_dxf('/mnt/projects/external/FABTotum/gcode-utils/examples/mtext_center.dxf')
+drawing.normalize()
 
 def __sort_elements(elements, sort_list = [], reverse_list = [], use_reverse = False):
     
@@ -116,10 +117,9 @@ cnc.setAbsolute()
 cnc.spindleON()
 
 elements = drawing.layers[0].primitives
-#~ idx_list, rev_list = __sort_elements(drawing.layers[0].primitives, use_reverse=True)
-#~ idx_list, rev_list = __sort_elements(drawing.layers[0].primitives, use_reverse=True)
-idx_list = range(len(elements))
-rev_list = []
+idx_list, rev_list = __sort_elements(drawing.layers[0].primitives, use_reverse=True)
+#~ idx_list = range(len(elements))
+#~ rev_list = []
 
 #for p in drawing.layers[0].primitives:
 for i in idx_list:

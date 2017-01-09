@@ -54,7 +54,7 @@ class Milling(CNC):
     def setPlungeSpeed(self, S):
         self.plunge_speed = S
         
-    def setTravelDistance(self, U):
+    def setTravelHeight(self, U):
         self.travel_distance_z = U
         self.__update_z_levels()
         

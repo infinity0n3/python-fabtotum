@@ -1,6 +1,7 @@
 from .cnc import CNC
 
 import math
+from shapely.geometry import Point,LineString,Polygon,box
 
 eZERO    = 0
 eSAFE    = 1
@@ -35,6 +36,9 @@ class MillingPCB(CNC):
         # Minimal xy step
         self.min_xy_step = 0.01
         
+        # Pauses
+        self.mill_start_pause = 1000
+        
         self.absTravelZ  = self.travel_distance_z
         self.absMillingZ = -self.plunge_depth
         self.absDrillZ = -self.drill_depth
@@ -55,7 +59,10 @@ class MillingPCB(CNC):
         #return (self.curZ == self.absTravelZ)
         #return self.__isAtZ(self.absTravelZ)
         return self.isAt(Z = self.absTravelZ)
-        
+    
+    def setMillingStartPause(self, value):
+        self.mill_start_pause = value
+    
     def setMinimalXYStep(self, step):
         self.min_xy_step = step
         
@@ -78,7 +85,7 @@ class MillingPCB(CNC):
     #~ def setCutSpeed(self, speed):
         #~ self.cut_speed_z = speed
         
-    def setTravelDistance(self, U):
+    def setTravelHeight(self, U):
         self.travel_distance_z = U
         self.__update_z_levels()
         
@@ -154,25 +161,38 @@ class MillingPCB(CNC):
         if not self.__isAtMillingZ():
             if self.isAbsolute():
                 self.moveToZ(Z=self.absMillingZ, F=feedrate, use_tool=True)
+                if self.mill_start_pause > 0:
+                    self.sync()
+                    self.wait(M=self.mill_start_pause)
             else:
                 x,y,z = self.convertToRelative(absZ=self.absMillingZ)
                 #print "relative milling z =", z
                 self.moveToZ(Z=z, F=feedrate, use_tool=True)
+                if self.mill_start_pause > 0:
+                    self.sync()
+                    self.wait(M=self.mill_start_pause)
 
     def travelTo(self, X, Y):
         """
         Travel to ``X``,``Y`` coordinates without milling.
         """
-        self.moveToTravelZ()
-        self.moveToXY(X, Y, F=self.travel_speed_xy)
+        if not self.isAt(X=X, Y=Y):
+            self.moveToTravelZ()
+            self.moveToXY(X, Y, F=self.travel_speed_xy)
         
-    def millTo(self, X, Y):
+    def millTo(self, X, Y, feedrate=None):
+        
+        if feedrate == None:
+            feedrate = self.milling_speed_xy
+        
         self.moveToMillingZ()
-        self.moveToXY(X, Y, F=self.milling_speed_xy, use_tool=True)
+        self.moveToXY(X, Y, F=feedrate, use_tool=True)
         
-    def cutTo(self, X, Y, cut_depth):
+    def cutTo(self, X, Y, cut_depth, feedrate=None):
+        if feedrate == None:
+            feedrate = self.cutting_speed_xy
         self.moveToCutZ(cut_depth)
-        self.moveToXY(X, Y, F=self.cutting_speed_xy, use_tool=True)
+        self.moveToXY(X, Y, F=feedrate, use_tool=True)
         
     def drillAt(self, X, Y, drill_depth = None):
         if drill_depth == None:
@@ -182,27 +202,36 @@ class MillingPCB(CNC):
         self.moveToDrillZ(drill_depth)
         self.moveToTravelZ()
     
-    def millRect(self, X, Y, W, H):
+    def millRect(self, X, Y, W, H, feedrate=None):
         self.travelTo(X,Y)
         if self.isAbsolute():
-            self.millTo(X+W, Y)
-            self.millTo(X+W, Y-H)
-            self.millTo(X, Y+H)
-            self.millTo(X, Y)
+            self.millTo(X+W, Y, feedrate)
+            self.millTo(X+W, Y-H, feedrate)
+            self.millTo(X, Y+H, feedrate)
+            self.millTo(X, Y, feedrate)
         else:
-            self.millTo(+W, 0)
-            self.millTo(0, -H)
-            self.millTo(-W, 0)
-            self.millTo(0, +H)
+            self.millTo(+W, 0, feedrate)
+            self.millTo(0, -H, feedrate)
+            self.millTo(-W, 0, feedrate)
+            self.millTo(0, +H, feedrate)
         self.stopMilling()
     
     def __optimize(self, obj):
         opt_obj = obj.simplify(tolerance=self.min_xy_step, preserve_topology=True)
         return opt_obj
     
-    def millPath(self, path):
+    def __reverse(self, obj):
+        obj_cpy = LineString(obj)
+        obj_cpy.coords = list(obj_cpy.coords)[::-1]
+        return obj_cpy
+    
+    def millPath(self, path, feedrate=None, reverse=False):
         # TODO: check if path is shapely object
         op = self.__optimize(path)
+        
+        if reverse:
+            op = self.__reverse(op)
+        
         x = op.xy[0]
         y = op.xy[1]
         
@@ -218,12 +247,12 @@ class MillingPCB(CNC):
                     self.travelTo(rx,ry)
             else:
                 if self.isAbsolute():
-                    self.millTo(X,Y)
+                    self.millTo(X,Y, feedrate=feedrate)
                 else:
                     (rx,ry,rz) = self.convertToRelative(X,Y)
-                    self.millTo(rx,ry)
+                    self.millTo(rx,ry, feedrate=feedrate)
 
-    def cutPath(self, path, cut_start_depth = None, cut_end_depth = None, cut_step = None):
+    def cutPath(self, path, feedrate=None, cut_start_depth = None, cut_end_depth = None, cut_step = None):
         # TODO: check if path is shapely object
         op = self.__optimize(path)
         x = list(op.xy[0])
@@ -239,17 +268,19 @@ class MillingPCB(CNC):
         if cut_step == None:
             cut_step = self.cut_step
         
-        print "cut_start_depth,cut_end_depth",cut_start_depth,cut_end_depth
+        #~ print "cut_start_depth,cut_end_depth", cut_start_depth,cut_end_depth
         
         num_of_steps = int(math.ceil( (cut_end_depth - cut_start_depth) / cut_step))
-        print "num_of_steps",num_of_steps
+        #~ print "num_of_steps",num_of_steps
         for step in range(1,num_of_steps+1):
             cut_depth = cut_start_depth + (self.cut_step * step)
+            
+            #~ print "target_cut_depth",cut_depth,"[",cut_step,"]",cut_end_depth
             
             if cut_depth > cut_end_depth:
                 cut_depth = cut_end_depth
             
-            print "cut_depth",cut_depth,"[",cut_step,"]"
+            #~ print "cut_depth",cut_depth,"[",cut_step,"]"
             self.addComment('Cut-Depth: ' + str(cut_depth) )
             
             for i in range(len(x)):
@@ -270,12 +301,14 @@ class MillingPCB(CNC):
                     (rx,ry,rz) = self.convertToRelative(X,Y)
                     self.cutTo(rx,ry, cut_depth)
             
-                    if X != x[0] or Y != y[0]:
-                        self.addComment('Reversing movement')
-                        print "reversing"
-                        # Reverse the direction for next step
-                        x.reverse()
-                        y.reverse()
+
+            if X != x[0] or Y != y[0]:
+                self.addComment('Reversing movement')
+                #~ print "reversing"
+                # Reverse the direction for next step
+                x.reverse()
+                y.reverse()  
+                
 
     def millContures(self, objs):
         pass

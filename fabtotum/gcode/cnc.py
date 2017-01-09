@@ -110,8 +110,8 @@ class CNC(object):
 
     def zeroAll(self):
         """Zero all axes."""
-        #~ self.raw.G92(X=0, Y=0, Z=0)
-        self.raw.G92()
+        self.raw.G92(X=0, Y=0, Z=0)
+        #~ self.raw.G92()
         self.curX = 0
         self.curY = 0
         self.curZ = 0
@@ -246,7 +246,13 @@ class CNC(object):
         # wait 3 seconds
         self.raw.G4(S=3)
         self.addComment('Spindle is off')
-        
+    
+    def wait(self, S=None, M=None):
+        if S != None:
+            self.raw.G4(S=S)
+        elif M != None:
+            self.raw.G4(P=M)
+            
     def moveToXYZ(self, X = None, Y = None, Z = None, F = None, use_tool=False):
         """
         Execute movement to `X`,`Y`,`Z` coordinates with speed of `F`.
@@ -322,3 +328,6 @@ class CNC(object):
                 >>> cnc.moveToZ(Z=2, F=150)
         """
         self.moveToXYZ(None, None, Z, F, use_tool)
+        
+    def sync(self):
+        self.raw.M400()

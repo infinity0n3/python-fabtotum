@@ -87,7 +87,7 @@ class PCB(object):
     @property
     def outline_layers(self):
         return [layer for layer in self.layers if layer.layer_class in
-                ('outline')]
+                ('outline', 'outline_mirror')]
 
     @property
     def layer_count(self):

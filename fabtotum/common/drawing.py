@@ -47,13 +47,18 @@ class Drawing2D(object):
     # Text attachment point.
     TOP_LEFT = 1
     TOP_CENTER = 2
-    TOP_RIFGR = 3
+    TOP_RIGHT = 3
     MIDDLE_LEFT = 4
     MIDDLE_CENTER = 5
     MIDDLE_RIGHT = 6
     BOTTOM_LEFT = 7
     BOTTOM_CENTER = 8
     BOTTOM_RIGHT = 9
+    
+    # Text alignment
+    ALIGN_LEFT = 1
+    ALIGN_CENTER = 2
+    ALIGN_RIGHT = 3
     
     def __init__(self):
         self.clear()
@@ -72,18 +77,37 @@ class Drawing2D(object):
             print 'neither a tuple or a list'
             return
         
+        x1 = 1.0e10
+        y1 = 1.0e10
+        x2 = -1.0e10
+        y2 = -1.0e10
+        
         for pt in points:
-            if pt[0] > self.max_x:
-                self.max_x = pt[0]
+            if pt[0] > x2:
+                x2 = pt[0]
                 
-            if pt[0] < self.min_x:
-                self.min_x = pt[0]
+            if pt[0] < x1:
+                x1 = pt[0] 
                 
-            if pt[1] > self.max_y:
-                self.max_y = pt[1]
+            if pt[1] > y2:
+                y2 = pt[1]
                 
-            if pt[1] < self.min_y:
-                self.min_y = pt[1]
+            if pt[1] < y1:
+                y1 = pt[1]
+            
+        if x2 > self.max_x:
+            self.max_x = x2
+            
+        if x1 < self.min_x:
+            self.min_x = x1
+            
+        if y2 > self.max_y:
+            self.max_y = y2
+            
+        if y1 < self.min_y:
+            self.min_y = y1
+        
+        return x1,y1, np.absolute(x2-x1), np.absolute(y2-y1)
     
     def get_font(self, font):
         filename = '/usr/share/librecad/fonts/{0}.lff'.format(font)
@@ -110,60 +134,6 @@ class Drawing2D(object):
         self.layers.append(layer)
         return idx
         
-    def add_rect(self, x1, y1, x2, y2, layer = 0, filled = False):
-        points = [
-            (x1,y1),
-            (x2,y1),
-            (x2,y2),
-            (x1,y2)
-        ]
-        data = { 'type' : 'rect', 'first': (x1,y1), 'second' : (x2,y2), 'points' : points, 'filled' : filled }
-        self.layers[layer].addPrimitive(data)
-        self.extend_bounds(points)
-        
-    def add_line(self, start, end, layer = 0):
-        data = { 'type' : 'line', 'points': [start, end] }
-        self.layers[layer].addPrimitive(data)
-        
-        self.extend_bounds(start)
-        self.extend_bounds(end)
-        
-    def add_polyline(self, points, bulges, closed = False, layer = 0, filled = False):        
-
-        if closed:
-            points.append(points[0])
-        
-        points2 = []
-        
-        cnt = 0
-        
-        idx = 0
-        has_prev = False
-        for pt in points:
-            if has_prev:
-                b = bulges[idx]
-                if b != 0:
-                    # Construct and arc
-                    center, radius, start, end, reverse = self.__bulge2arc(p0, pt, b)
-                    arc = self.__arc(center, radius, start, end, step = 10.0, reverse=reverse)
-                    
-                    points2 += arc
-                else:
-                    # Use a straight line 
-                    points2.append(pt)
-                    
-                idx += 1
-            else:
-                points2.append(pt)
-                
-            p0 = pt
-            has_prev = True
-            
-        data = { 'type' : 'polyline', 'points' : points2, 'bulges' : bulges, 'closed' : closed, 'filled' : filled }
-        
-        self.layers[layer].addPrimitive(data)
-        self.extend_bounds(points)
-    
     def __bulge2arc(self, p1, p2, b):
         center = (0,0)
         start = 0.0
@@ -218,18 +188,93 @@ class Drawing2D(object):
             end = start + np.rad2deg( theta )
         
         return center, radius, start, end, reverse
+        
+    def __translate_points(self, points, tx, ty):
+        tpoints = []
+        for pt in points:
+            x = pt[0] + tx
+            y = pt[y] + ty
+            tpoints.append( (x,y) )
+            
+        return tpoints
+        
+    def add_rect(self, x1, y1, x2, y2, layer = 0, filled = False):
+        points = [
+            (x1,y1),
+            (x2,y1),
+            (x2,y2),
+            (x1,y2),
+            (x1,y1)
+        ]
+        data = { 'type' : 'rect', 'first': (x1,y1), 'second' : (x2,y2), 'points' : points, 'filled' : filled }
+        self.layers[layer].addPrimitive(data)
+        return self.extend_bounds(points)
+        
+    def add_rect2(self, x1, y1, w, h, layer = 0, filled = False):
+        points = [
+            (x1,y1),
+            (x1+w,y1),
+            (x1+w,y1+h),
+            (x1,y1+h),
+            (x1,y1),
+        ]
+        data = { 'type' : 'rect', 'first': (x1,y1), 'second' : (x1+w,y1+h), 'points' : points, 'filled' : filled }
+        self.layers[layer].addPrimitive(data)
+        return self.extend_bounds(points)
+        
+    def add_line(self, start, end, layer = 0):
+        data = { 'type' : 'line', 'points': [start, end] }
+        self.layers[layer].addPrimitive(data)
+        
+        return self.extend_bounds( [start, end] )
     
+    def add_polyline(self, points, bulges, closed = False, layer = 0, filled = False, dummy = False):
+
+        if closed:
+            points.append(points[0])
+        
+        points2 = []
+        
+        cnt = 0
+        
+        idx = 0
+        has_prev = False
+        for pt in points:
+            if has_prev:
+                b = bulges[idx]
+                if b != 0:
+                    # Construct and arc
+                    center, radius, start, end, reverse = self.__bulge2arc(p0, pt, b)
+                    arc = self.__arc(center, radius, start, end, step = 10.0, reverse=reverse)
+                    
+                    points2 += arc
+                else:
+                    # Use a straight line 
+                    points2.append(pt)
+                    
+                idx += 1
+            else:
+                points2.append(pt)
+                
+            p0 = pt
+            has_prev = True
+            
+        data = { 'type' : 'polyline', 'points' : points2, 'bulges' : bulges, 'closed' : closed, 'filled' : filled }
+        if not dummy:
+            self.layers[layer].addPrimitive(data)
+        return self.extend_bounds(points2)
+        
     def add_circle(self, center, radius, layer = 0, filled = False):
         points = self.__circle(center, radius)
         data = { 'type' : 'circle', 'center' : center, 'radius' : radius, 'points' : points, 'filled' : filled }
         self.layers[layer].addPrimitive(data)
-        self.extend_bounds(points)
+        return self.extend_bounds(points)
     
     def add_arc(self, center, radius, start, end, layer = 0):
         points = self.__arc(center, radius, start, end)
         data = { 'type' : 'arc', 'center' : center, 'radius' : radius, 'start' : start, 'end': end, 'points' : points }
         self.layers[layer].addPrimitive(data)
-        self.extend_bounds(points)
+        return self.extend_bounds(points)
     
     def add_spline(self, control_points, knots, degree, layer = 0):
         
@@ -242,7 +287,7 @@ class Drawing2D(object):
         
         data = { 'type' : 'spline', 'control_points' : control_points, 'knots' : knots, 'degree' : degree, 'points' : points}
         self.layers[layer].addPrimitive(data)
-        self.extend_bounds(points)
+        return self.extend_bounds(points)
     
     def add_ellipse(self, center, major_axis, ratio, start, end, layer = 0, filled = False):
         points = self.__ellipse(center, major_axis, ratio, start, end)
@@ -250,12 +295,10 @@ class Drawing2D(object):
         self.layers[layer].addPrimitive(data)
         self.extend_bounds(points)
     
-    def add_text(self, position, align, height, direction, font_name, text, layer = 0):
+    def add_text(self, position, align, width, height, direction, font_name, text_lines, layer = 0):
         # TODO:
         # - alignment
         # - direction
-        # - height
-        # - new line
         #~ font_name = 'OpenGostTypeA-Regular'
         #~ font_name = 'iso'
         font = self.get_font(font_name)
@@ -264,61 +307,86 @@ class Drawing2D(object):
             print "Font '{0}' not found".format(font_name)
             return
         
-        wordSpacing = float(font.meta['WordSpacing'])
-        letterSpacing = float(font.meta['LetterSpacing'])
-        letterHeight = 0
+        print
+        print "direction", direction
+        print "height", height
+        
+        scale = height / 9.0
+        print "scale",scale
+        wordSpacing = float(font.meta['WordSpacing']) * scale
+        letterSpacing = float(font.meta['LetterSpacing']) * scale
+        letterHeight = height
+        
+        print "letterSpacing", letterSpacing
+        print "wordSpacing", wordSpacing
+        
+        print text_lines
         
         off_x = position[0]
         off_y = position[1]
-        max_x = off_x
-        max_y = off_y
         
-        for c in text:
-            if c == ' ':
-                off_x += wordSpacing
-            elif c == '\r' or c == '\n':
-                off_x += letterHeight
-            else:
-                sym = font.getSymbol(c)
-                # TODO: load reference character
-                if sym.ref:
-                    #~ print "has ref to '{0}'".format(sym.ref)
-                    sym_ref = font.getSymbol(sym.ref)
-                    lines = sym_ref.lines + sym.lines
+        for text in text_lines:
+            #~ off_x = position[0]
+            
+            for c in text:
+                if c == ' ':
+                    off_x += wordSpacing
                 else:
-                    lines = sym.lines
-                cnt = 0
-                
-                for line in lines:
-                    eat_one = True
-                    points = []
-                    bulges = []
-                    for pt in line:
-                        x = pt[0] + off_x
-                        y = pt[1] + off_y
-                        p1 = (x, y)
-                        points.append(p1)
-                        
-                        if len(pt) == 3:
-                            bulges.append(pt[2])
-                        else:
-                            if len(points) > 0:
-                                if eat_one:
-                                    eat_one = False
-                                    pass
-                                else:
-                                    bulges.append(0.0)
-                        
-                        max_x = max(x, max_x)
-                        max_y = max(y, max_y)
+                    sym = font.getSymbol(c)
+                    # TODO: load reference character
+                    if sym.ref:
+                        #~ print "has ref to '{0}'".format(sym.ref)
+                        sym_ref = font.getSymbol(sym.ref)
+                        lines = sym_ref.lines + sym.lines
+                    else:
+                        lines = sym.lines
+                    cnt = 0
                     
-                    if eat_one == False:
-                        bulges.append(0.0)
+                    max_x = -1e10
+                    max_y = -1e10
+                    
+                    for line in lines:
+                        eat_one = True
+                        points = []
+                        bulges = []
+                        for pt in line:
+                            x = pt[0]*scale + off_x
+                            y = pt[1]*scale + off_y
+                            p1 = (x, y)
+                            points.append(p1)
                             
-                    self.add_polyline(points, bulges, layer=layer)
-                   
-                off_x = max_x + letterSpacing
-    
+                            if len(pt) == 3:
+                                bulges.append(pt[2])
+                            else:
+                                if len(points) > 0:
+                                    if eat_one:
+                                        eat_one = False
+                                        pass
+                                    else:
+                                        bulges.append(0.0)
+                            
+                            #~ max_x = max(x, max_x)
+                            #~ max_y = max(y, max_y)
+                        
+                        if eat_one == False:
+                            bulges.append(0.0)
+                                
+                        x,y,w,h = self.add_polyline(points, bulges, layer=layer)
+                        #~ print x,y,w,h
+                        max_x = max(x+w, max_x)
+                        max_y = max(y+h,max_y)
+                        
+                    #~ print "R",off_x,off_y,max_x,max_y
+                    #~ self.add_rect(off_x,off_y,max_x,max_y,layer=layer)
+                    
+                    print "off_x", off_x, position[0]
+                        
+                    off_x = max_x + letterSpacing
+                    print "+off_x", off_x
+                    
+            off_y -= letterHeight
+            off_x = position[0]
+            
     def __ellipse_point(self, center, r1, r2, rotM, t):
         x1 = r1 * np.cos( np.radians(t) )
         y1 = r2 * np.sin( np.radians(t) )
@@ -684,7 +752,49 @@ class Drawing2D(object):
                 self.add_spline(e.control_points, e.knots, e.degree, layer_map[e.layer])
             
             elif t == 'MTEXT':
-                self.add_text(e.insert, e.attachment_point, e.height, e.xdirection, e.font, e.raw_text, layer=layer_map[e.layer])
+                ln = len(e.lines())
+                lh = e.height
+                w = e.rect_width
+                x = e.insert[0]
+                y = e.insert[1] - lh
+                align = self.ALIGN_LEFT
+                
+                if e.attachment_point == self.TOP_LEFT:
+                    pass
+                elif e.attachment_point == self.TOP_CENTER:
+                    #~ x -= w * 0.5
+                    align = self.ALIGN_CENTER
+                elif e.attachment_point == self.TOP_RIGHT:
+                    #~ x -= w
+                    align = self.ALIGN_RIGHT
+                elif e.attachment_point == self.MIDDLE_LEFT:
+                    y += ln*lh * 0.5
+                elif e.attachment_point == self.MIDDLE_CENTER:
+                    #~ x -= w * 0.5
+                    y += ln*lh * 0.5
+                    align = self.ALIGN_CENTER
+                elif e.attachment_point == self.MIDDLE_RIGHT:
+                    #~ x -= w
+                    y += ln*lh * 0.5
+                    align = self.ALIGN_RIGHT
+                elif e.attachment_point == self.BOTTOM_LEFT:
+                    y += ln*lh
+                    pass
+                elif e.attachment_point == self.BOTTOM_CENTER:
+                    #~ x -= w * 0.5
+                    y += ln*lh
+                    align = self.ALIGN_CENTER
+                elif e.attachment_point == self.BOTTOM_RIGHT:
+                    #~ x -= w
+                    y += ln*lh
+                    align = self.ALIGN_RIGHT
+    
+                self.add_text((x,y), align, e.rect_width, e.height, e.xdirection, e.font, e.lines(), layer=layer_map[e.layer])
+                
+                #self.add_rect2(e.insert[0],e.insert[1],e.rect_width,-e.height*len(e.lines()),layer=layer_map[e.layer])
+                #print "e.raw_text",e.plain_text()
+                #print "rect_width",e.rect_width
+                #print "line_spacing",e.line_spacing
 
     #~ def optimize(self):
         #~ for l in self.layers:
