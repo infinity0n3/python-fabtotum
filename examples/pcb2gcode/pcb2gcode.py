@@ -1,4 +1,4 @@
-#!/bin/env python2
+#!/usr/bin/env python2
 
 from fabtotum.loaders import gerber
 from fabtotum.loaders.gerber.render import *
