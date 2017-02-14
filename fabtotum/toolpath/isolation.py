@@ -34,10 +34,21 @@ class IsolationToolpath(ToolpathContext):
 
         result = cascaded_union(toolpath)
         if result.geom_type == 'Polygon':
-            return [ result.exterior ]
+            tmp = [result.exterior]
+            
+            for i in result.interiors:
+                poly = Polygon(i)
+                tmp.append( poly.exterior )
+            
+            return tmp
         elif result.geom_type == 'MultiPolygon':
             tmp = []
             for f in result:
                 tmp.append( f.exterior )
+                
+                for i in f.interiors:
+                    poly = Polygon(i)
+                    tmp.append( poly.exterior )
+                
             return tmp
             

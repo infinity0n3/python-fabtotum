@@ -45,7 +45,8 @@ class GerberContext(object):
         Measurement units. 'inch' or 'metric'
 
     color : tuple (<float>, <float>, <float>)
-        Color used for rendering as a tuple of normalized (red, green, blue) values.
+        Color used for rendering as a tuple of normalized (red, green, blue)
+        values.
 
     drill_color : tuple (<float>, <float>, <float>)
         Color used for rendering drill hits. Format is the same as for `color`.
@@ -62,6 +63,7 @@ class GerberContext(object):
         self._units = units
         self._color = (0.7215, 0.451, 0.200)
         self._background_color = (0.0, 0.0, 0.0)
+        self._drill_color = (0.0, 0.0, 0.0)
         self._alpha = 1.0
         self._invert = False
         self.ctx = None
@@ -134,6 +136,11 @@ class GerberContext(object):
         self._invert = invert
 
     def render(self, primitive):
+        if not primitive:
+            return
+
+        self._pre_render_primitive(primitive)
+
         color = self.color
         if isinstance(primitive, Line):
             self._render_line(primitive, color)
@@ -150,11 +157,31 @@ class GerberContext(object):
         elif isinstance(primitive, Polygon):
             self._render_polygon(primitive, color)
         elif isinstance(primitive, Drill):
-            self._render_drill(primitive, color)
+            self._render_drill(primitive, self.color)
+        elif isinstance(primitive, Slot):
+            self._render_slot(primitive, self.color)
+        elif isinstance(primitive, AMGroup):
+            self._render_amgroup(primitive, color)
+        elif isinstance(primitive, Outline):
+            self._render_region(primitive, color)
         elif isinstance(primitive, TestRecord):
             self._render_test_record(primitive, color)
-        else:
-            return
+
+        self._post_render_primitive(primitive)
+
+    def _pre_render_primitive(self, primitive):
+        """
+        Called before rendering a primitive. Use the callback to perform some action before rendering
+        a primitive, for example adding a comment.
+        """
+        return
+
+    def _post_render_primitive(self, primitive):
+        """
+        Called after rendering a primitive. Use the callback to perform some action after rendering
+        a primitive
+        """
+        return
 
 
     def _render_line(self, primitive, color):
@@ -181,13 +208,19 @@ class GerberContext(object):
     def _render_drill(self, primitive, color):
         pass
 
+    def _render_slot(self, primitive, color):
+        pass
+
+    def _render_amgroup(self, primitive, color):
+        pass
+
     def _render_test_record(self, primitive, color):
         pass
 
 
 class RenderSettings(object):
-
-    def __init__(self, color=(0.0, 0.0, 0.0), alpha=1.0, invert=False, mirror=False):
+    def __init__(self, color=(0.0, 0.0, 0.0), alpha=1.0, invert=False,
+                 mirror=False):
         self.color = color
         self.alpha = alpha
         self.invert = invert

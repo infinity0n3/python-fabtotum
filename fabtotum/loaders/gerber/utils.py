@@ -25,9 +25,7 @@ files.
 
 import os
 from math import radians, sin, cos
-from operator import sub
-from copy import deepcopy
-#from pyhull.convex_hull import ConvexHull
+from scipy.spatial import ConvexHull
 
 MILLIMETERS_PER_INCH = 25.4
 
@@ -291,10 +289,25 @@ def rotate_point(point, angle, center=(0.0, 0.0)):
         `point` rotated about `center` by `angle` degrees.
     """
     angle = radians(angle)
-    xdelta, ydelta = tuple(map(sub, point, center))
-    x = center[0] + (cos(angle) * xdelta) - (sin(angle) * ydelta)
-    y = center[1] + (sin(angle) * xdelta) - (cos(angle) * ydelta)
-    return (x, y)
+
+    cos_angle = cos(angle)
+    sin_angle = sin(angle)
+
+    return (
+            cos_angle * (point[0] - center[0]) - sin_angle * (point[1] - center[1]) + center[0],
+            sin_angle * (point[0] - center[0]) + cos_angle * (point[1] - center[1]) + center[1])
+
+def nearly_equal(point1, point2, ndigits = 6):
+    '''Are the points nearly equal'''
+
+    return round(point1[0] - point2[0], ndigits) == 0 and round(point1[1] - point2[1], ndigits) == 0
+
+
+def sq_distance(point1, point2):
+
+    diff1 = point1[0] - point2[0]
+    diff2 = point1[1] - point2[1]
+    return diff1 * diff1 + diff2 * diff2
 
 
 def listdir(directory, ignore_hidden=True, ignore_os=True):
@@ -327,7 +340,6 @@ def listdir(directory, ignore_hidden=True, ignore_os=True):
     return files
 
 
-#~ def convex_hull(points):
-    #~ vertices = ConvexHull(points).vertices
-    #~ return [points[idx] for idx in
-            #~ set([point for pair in vertices for point in pair])]
+def convex_hull(points):
+    vertices = ConvexHull(points).vertices
+    return [points[idx] for idx in vertices]

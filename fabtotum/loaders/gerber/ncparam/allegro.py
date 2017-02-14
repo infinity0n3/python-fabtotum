@@ -1,7 +1,7 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# copyright 2014 Hamilton Kibbe <ham@hamiltonkib.be>
+# Copyright 2015 Garret Fick <garret@ficksworkshop.com>
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,17 +14,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
-gerber.render
-============
-**Gerber Renderers**
+Allegro File module
+====================
+**Excellon file classes**
 
-This module provides contexts for rendering images of gerber layers. Currently
-SVG is the only supported format.
+Extra parsers for allegro misc files that can be useful when the Excellon file doesn't contain parameter information
 """
-
-
-from .cairo_backend import GerberCairoContext
-from .shapely_backend import ShapelyContext
-from .render import RenderSettings
 
