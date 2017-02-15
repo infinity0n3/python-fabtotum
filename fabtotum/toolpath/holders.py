@@ -109,20 +109,20 @@ class HoldersToolpath(ToolpathContext):
 		
 		if result.geom_type == 'Polygon':
 			opt_obj = result.simplify(tolerance=0.01, preserve_topology=False)
-			result = self.add_holders(opt_obj.exterior, self.holder_size + tool_d, self.min_len)
-			if type(result) == list:
-				return result
+			tmp = self.add_holders(opt_obj.exterior, self.holder_size + tool_d, self.min_len)
+			if type(tmp) == list:
+				return tmp
 			else:
-				return [result]
+				return [tmp]
 			
 		elif result.geom_type == 'MultiPolygon':
 			tmp = []
 			for f in result:
 				opt_obj = f.simplify(tolerance=0.01, preserve_topology=False)
-				result = self.add_holders(opt_obj.exterior, self.holder_size + tool_d, self.min_len)
-				if type(result) == list:
-					for item in result:
+				tmp2 = self.add_holders(opt_obj.exterior, self.holder_size + tool_d, self.min_len)
+				if type(tmp2) == list:
+					for item in tmp2:
 						tmp.append(item)
 				else:
-					tmp.append( result )
+					tmp.append( tmp2 )
 			return tmp

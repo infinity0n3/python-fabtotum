@@ -30,8 +30,8 @@ if speedups.available:
     speedups.enable()
 
 import copy
-
 import json
+import numpy as np
 
 from .render import GerberContext, RenderSettings
 from .theme import THEMES
@@ -84,17 +84,12 @@ class ShapelyContext(GerberContext):
         #print("TODO: render line")
         if isinstance(line.aperture, Circle):
             width = line.aperture.diameter / 2.0
-            
-            
-            
-            if width < 0.1:
-                return
-                
-            #~ print width
-                
+                            
             if self.ignore_width:
                 self.figs.append( sg.LineString([line.start,line.end]) )
             else:
+                if width < 0.1:
+                    return
                 self.figs.append( sg.LineString([line.start,line.end]).buffer(width, cap_style=1, join_style=1, resolution=8) )
         elif isinstance(line.aperture, Rectangle):
             print("TODO: render line [aperture=rect]")
@@ -105,9 +100,147 @@ class ShapelyContext(GerberContext):
                 #~ self.ctx.line_to(*point)
             #~ self.ctx.fill()
             
-    def _render_arc(self, primitive, color):
+    def __wrapTo360(self, angle):
+        angle = np.fmod(angle,360);
+        if angle < 0:
+            angle += 360;
+        return angle;
+    
+    #~ def __arc(self, center, radius, start, end, step = 10.0, reverse=False):
+        #~ """
+        #~ Draw an arc.
+        
+        #~ :param center: Tuple (x,y) representing the arc center point
+        #~ :param radius: Arc radius
+        #~ :param start: Arc start angle (degree)
+        #~ :param end: Arc end angle (degree)
+        #~ :param step: Angle change step
+        #~ :param reverse: Reverse arc points
+        
+        #~ :returns: Arc points
+        #~ """
+        #~ x0 = center[0]
+        #~ y0 = center[1]
+        #~ points = []
+        #~ r = radius
+        #~ angle = self.__wrapTo360(end - start)
+        
+        #~ steps = int(abs(angle / step))
+
+        #~ have_prev = False
+        
+        #~ start = self.__wrapTo360(start)
+        #~ end = self.__wrapTo360(end)
+        
+        #~ a1 = start
+        #~ a2 = end
+        #~ sign = 1
+        
+        #~ if reverse:
+            #~ a1 = end
+            #~ a2 = start
+            #~ sign = -1
+        
+        #~ for a in xrange(steps):
+            #~ angle = np.deg2rad(a1 + sign*a*step)
+            #~ x2 = x0 + np.cos(angle)*r
+            #~ y2 = y0 + np.sin(angle)*r
+            
+            #~ points.append( (x2,y2) )
+
+            #~ x1 = x2
+            #~ y1 = y2
+            #~ have_prev = True
+            
+        #~ if (a1 + sign*(steps-1)*step) != a2:
+            #~ angle = np.deg2rad(a2)
+            #~ x2 = x0 + np.cos(angle)*r
+            #~ y2 = y0 + np.sin(angle)*r
+            
+            #~ points.append( (x2,y2) )
+            
+        #~ return points
+            
+    def _render_arc(self, arc, color):
         print("TODO: render arc")
-        pass
+        center = arc.center
+        start = arc.start
+        end = arc.end
+        radius =  arc.radius
+        angle1 = np.rad2deg(arc.start_angle)
+        angle2 = np.rad2deg(arc.end_angle)
+        width = arc.aperture.diameter if arc.aperture.diameter != 0 else 0.001
+        
+        if angle1 > angle2:
+            angle1 = self.__wrapTo360(angle1)
+            angle2 = self.__wrapTo360(angle2)
+        
+        angle1 = np.deg2rad(angle1)
+        angle2 = np.deg2rad(angle2)
+        
+        step = 0.1
+        
+        reverse = False
+        
+        #if angle1 > angle2:
+        #    reverse = True
+        
+        sign = 1
+        if reverse:
+            tmp = angle1
+            angle1 = angle2
+            angle2 = tmp
+            sign = -1
+            
+        angle = abs(angle1 - angle2)
+        steps = int(abs(angle / step))
+        print "Angle", angle, steps
+        
+        x0 = center[0]
+        y0 = center[1]
+        
+        points = []
+    
+        steps -= 2
+    
+        points.append( start )
+    
+        for a in xrange(steps):
+            angle = angle1 + sign*(a+1)*step
+            x2 = x0 + np.cos(angle)*radius
+            y2 = y0 + np.sin(angle)*radius
+            
+            points.append( (x2,y2) )
+
+            x1 = x2
+            y1 = y2
+            have_prev = True
+            
+        #if (angle1 + sign*(steps-1)*step) != angle2:
+        #~ angle = angle2
+        #~ x2 = x0 + np.cos(angle)*radius
+        #~ y2 = y0 + np.sin(angle)*radius
+            
+        #~ points.append( (x2,y2) )
+
+        points.append( end )
+
+        print "arc", center, start, end, radius, angle1, angle2, arc.direction
+        
+        if self.ignore_width:
+            print "Adding thin line"
+            #~ print points
+            self.figs.append( sg.LineString(points) )
+            #~ self.figs.append( sg.LineString([center, start]) )
+        
+        #~ if arc.direction == 'counterclockwise':
+            #~ print "- cw", center, start, end, radius, angle1, angle2, arc.direction
+            #~ self.ctx.arc(*center, radius=radius, angle1=angle1, angle2=angle2)
+        #~ else:
+            #~ print "- ccw"
+            #~ self.ctx.arc_negative(*center, radius=radius,
+                                  #~ angle1=angle1, angle2=angle2)
+        #~ self.ctx.move_to(*end)  # ...lame
 
     def _render_region(self, region, color):       
         points = []
@@ -245,6 +378,7 @@ class ShapelyContext(GerberContext):
             
         if lines_only and self.ignore_width:
             result = linemerge(merge)
+            print "Only LINES", result
         else:
             try:
                 result = cascaded_union(merge)

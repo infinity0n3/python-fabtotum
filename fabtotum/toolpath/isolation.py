@@ -23,8 +23,10 @@ from .toolpath import ToolpathContext
 
 class IsolationToolpath(ToolpathContext):
     
-    def __init__(self):
+    def __init__(self, use_exterior=True, use_interior=True):
         super(IsolationToolpath, self).__init__()
+        self.use_exterior = use_exterior
+        self.use_interior = use_interior
 
     def generate_paths(self, shapes, tool_d):
         tool_r = tool_d / 2.0
@@ -33,22 +35,27 @@ class IsolationToolpath(ToolpathContext):
             toolpath.append( shp.buffer(tool_r) )
 
         result = cascaded_union(toolpath)
+        
+        tmp = []
+        
         if result.geom_type == 'Polygon':
-            tmp = [result.exterior]
+            if self.use_exterior:
+                tmp = [result.exterior]
             
-            for i in result.interiors:
-                poly = Polygon(i)
-                tmp.append( poly.exterior )
+            if self.use_interior:
+                for i in result.interiors:
+                    poly = Polygon(i)
+                    tmp.append( poly.exterior )
             
-            return tmp
         elif result.geom_type == 'MultiPolygon':
-            tmp = []
-            for f in result:
-                tmp.append( f.exterior )
-                
+            if self.use_exterior:
+                for f in result:
+                    tmp.append( f.exterior )
+
+            if self.use_interior:
                 for i in f.interiors:
                     poly = Polygon(i)
                     tmp.append( poly.exterior )
                 
-            return tmp
+        return tmp
             

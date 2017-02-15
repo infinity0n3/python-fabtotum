@@ -114,8 +114,9 @@ def main():
         'use-continuity-probe'    :    True,
         # Holders
         'use-holders'    : True,    # Skip cutting PCB at some places to keep it in place
-        'holder-size'    : 2.0,  # Single holder size
-        'holder-height'  : 0.8,    # Thickness of the holders
+        'holder-size'    : 2.0,     # Single holder size
+        'holder-height'  : 0.8,     # Thickness of the holders
+        'holder-min-length' : 5,   # Path must be at least this long to include a holder. Use this to avoid putting holders on short segments.
         # Array (TODO)
         # Rotation (TODO)
         # Markers
@@ -145,6 +146,10 @@ def main():
     # Convert gerber to shapely objects
     for layer in pcb.layers:
         shp = ShapelyContext()
+        
+        if layer.layer_class == 'outline':
+            shp.set_ignore_width(True)
+            
         layer.cam_source.render( shp )
         layer_shape[layer.layer_class] = shp
         
@@ -302,25 +307,35 @@ def main():
     for layer in pcb.outline_layers:
         out = GCodeOutput(app_args.output+'/'+layer.layer_class+'.gcode')
         
-        toolpath = IsolationToolpath()
+        figs = []
+        
+        for fig in layer_shape[layer.layer_class].figs:
+            figs.append( list(fig.coords) )
+            
+        with open('figs.json', 'w') as f:
+            f.write( json.dumps(figs) )
+        
+        toolpath = IsolationToolpath(use_interior=False)
         toolpath.add_tool( config['cut-bit-diameter'] )
         paths = toolpath.generate(layer_shape[layer.layer_class].figs)
 
         toolpath2 = HoldersToolpath()
         toolpath2.set_holder_params(holder_size = config['holder-size'],
-                                     min_len = 10 )  # TODO: make a configuration
+                                     min_len = config['holder-min-length'] )
         toolpath2.add_tool( config['cut-bit-diameter'] )
         paths2 = toolpath2.generate(layer_shape[layer.layer_class].figs)
+
+        print "TOOLPATHS", len(paths2)
 
         cnc = MillingPCB(out)
 
         # Start code
-        cnc.setTravelSpeed    (XY= config['travel-xy-speed'], Z = config['travel-z-speed'])
-        cnc.setMillingSpeed    ( config['cutting-xy-speed'] )
-        cnc.setDrillSpeed    ( config['drilling-z-speed'] )
-        cnc.setTravelHeight    ( config['travel-height'] )
-        cnc.setPlungeDepth    ( config['plunge-depth'] )
-        cnc.setSpindleSpeed    ( config['spindle-speed'] )
+        cnc.setTravelSpeed  (XY= config['travel-xy-speed'], Z = config['travel-z-speed'])
+        cnc.setMillingSpeed ( config['cutting-xy-speed'] )
+        cnc.setDrillSpeed   ( config['drilling-z-speed'] )
+        cnc.setTravelHeight ( config['travel-height'] )
+        cnc.setPlungeDepth  ( config['plunge-depth'] )
+        cnc.setSpindleSpeed ( config['spindle-speed'] )
         
         cut_start_depth = 0
         #~ cut_end_depth = config['pcb-thickness'] + 0.1 #config['cut-depth']
