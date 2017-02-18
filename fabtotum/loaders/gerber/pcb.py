@@ -41,6 +41,14 @@ class PCB(object):
                 camfile = gerber_read(os.path.join(directory, filename))
                 layer = PCBLayer.from_cam(camfile)
                 layers.append(layer)
+                
+                if layer.layer_class in ['outline', 'drill']:
+                    layer_mirror = PCBLayer.from_cam(camfile, mirrored='x')
+                    layers.append(layer_mirror)
+                    if verbose:
+                        print('[PCB]: Added {} layer(mirror) <{}>'.format(layer_mirror.layer_class,
+                                                                  filename))
+                    
                 names.add(os.path.splitext(filename)[0])
                 if verbose:
                     print('[PCB]: Added {} layer <{}>'.format(layer.layer_class,
@@ -94,7 +102,7 @@ class PCB(object):
     @property
     def outline_layers(self):
         return [layer for layer in self.layers if layer.layer_class in
-                ('outline', 'outline_mirror')]
+                ('outline', 'outline_bottom')]
                 
     @property
     def layer_count(self):

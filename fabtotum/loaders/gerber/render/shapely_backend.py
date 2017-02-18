@@ -105,64 +105,9 @@ class ShapelyContext(GerberContext):
         if angle < 0:
             angle += 360;
         return angle;
-    
-    #~ def __arc(self, center, radius, start, end, step = 10.0, reverse=False):
-        #~ """
-        #~ Draw an arc.
-        
-        #~ :param center: Tuple (x,y) representing the arc center point
-        #~ :param radius: Arc radius
-        #~ :param start: Arc start angle (degree)
-        #~ :param end: Arc end angle (degree)
-        #~ :param step: Angle change step
-        #~ :param reverse: Reverse arc points
-        
-        #~ :returns: Arc points
-        #~ """
-        #~ x0 = center[0]
-        #~ y0 = center[1]
-        #~ points = []
-        #~ r = radius
-        #~ angle = self.__wrapTo360(end - start)
-        
-        #~ steps = int(abs(angle / step))
-
-        #~ have_prev = False
-        
-        #~ start = self.__wrapTo360(start)
-        #~ end = self.__wrapTo360(end)
-        
-        #~ a1 = start
-        #~ a2 = end
-        #~ sign = 1
-        
-        #~ if reverse:
-            #~ a1 = end
-            #~ a2 = start
-            #~ sign = -1
-        
-        #~ for a in xrange(steps):
-            #~ angle = np.deg2rad(a1 + sign*a*step)
-            #~ x2 = x0 + np.cos(angle)*r
-            #~ y2 = y0 + np.sin(angle)*r
-            
-            #~ points.append( (x2,y2) )
-
-            #~ x1 = x2
-            #~ y1 = y2
-            #~ have_prev = True
-            
-        #~ if (a1 + sign*(steps-1)*step) != a2:
-            #~ angle = np.deg2rad(a2)
-            #~ x2 = x0 + np.cos(angle)*r
-            #~ y2 = y0 + np.sin(angle)*r
-            
-            #~ points.append( (x2,y2) )
-            
-        #~ return points
             
     def _render_arc(self, arc, color):
-        print("TODO: render arc")
+        #~ print("TODO: render arc")
         center = arc.center
         start = arc.start
         end = arc.end
@@ -194,7 +139,6 @@ class ShapelyContext(GerberContext):
             
         angle = abs(angle1 - angle2)
         steps = int(abs(angle / step))
-        print "Angle", angle, steps
         
         x0 = center[0]
         y0 = center[1]
@@ -215,58 +159,32 @@ class ShapelyContext(GerberContext):
             x1 = x2
             y1 = y2
             have_prev = True
-            
-        #if (angle1 + sign*(steps-1)*step) != angle2:
-        #~ angle = angle2
-        #~ x2 = x0 + np.cos(angle)*radius
-        #~ y2 = y0 + np.sin(angle)*radius
-            
-        #~ points.append( (x2,y2) )
 
         points.append( end )
 
-        print "arc", center, start, end, radius, angle1, angle2, arc.direction
+        #~ print "arc", center, start, end, radius, angle1, angle2, arc.direction
         
         if self.ignore_width:
-            print "Adding thin line"
-            #~ print points
             self.figs.append( sg.LineString(points) )
-            #~ self.figs.append( sg.LineString([center, start]) )
-        
-        #~ if arc.direction == 'counterclockwise':
-            #~ print "- cw", center, start, end, radius, angle1, angle2, arc.direction
-            #~ self.ctx.arc(*center, radius=radius, angle1=angle1, angle2=angle2)
-        #~ else:
-            #~ print "- ccw"
-            #~ self.ctx.arc_negative(*center, radius=radius,
-                                  #~ angle1=angle1, angle2=angle2)
-        #~ self.ctx.move_to(*end)  # ...lame
 
     def _render_region(self, region, color):       
         points = []
         points.append( region.primitives[0].start )
         
-        #~ print "move_to", region.primitives[0].start
         for prim in region.primitives:
-            #~ print "Primitive:", type(prim)
             if isinstance(prim, Line):
                 points.append( prim.end )
             else:
-                #~ center = self.scale_point(prim.center)
                 center = prim.center
                 radius = prim.radius
                 angle1 = prim.start_angle
                 angle2 = prim.end_angle
                 if prim.direction == 'counterclockwise':
                     print "TODO: arc-ccw in regions"
-                    #~ mask.ctx.arc(*center, radius=radius,
-                                 #~ angle1=angle1, angle2=angle2)
                     print "arc (ccw)", center, radius, angle1, angle2
                 else:
                     print "TODO: arc-cw in regions"
                     print "arc (cw)", center, radius, angle1, angle2
-                    #~ mask.ctx.arc_negative(*center, radius=radius,
-                                          #~ angle1=angle1, angle2=angle2)
 
         tmp = []
         coords = []
@@ -378,7 +296,6 @@ class ShapelyContext(GerberContext):
             
         if lines_only and self.ignore_width:
             result = linemerge(merge)
-            print "Only LINES", result
         else:
             try:
                 result = cascaded_union(merge)
@@ -390,41 +307,15 @@ class ShapelyContext(GerberContext):
         elif result.geom_type == 'MultiPolygon' or result.geom_type == 'MultiLineString':
             for f in result:
                 self.figs.append(f)
-                
-    #~ def _render_arc(self, arc, color):
-        #~ center = self.scale_point(arc.center)
-        #~ start = self.scale_point(arc.start)
-        #~ end = self.scale_point(arc.end)
-        #~ radius = self.scale[0] * arc.radius
-        #~ angle1 = arc.start_angle
-        #~ angle2 = arc.end_angle
-        #~ width = arc.aperture.diameter if arc.aperture.diameter != 0 else 0.001
-        #~ if not self.invert:
-            #~ self.ctx.set_source_rgba(*color, alpha=self.alpha)
-            #~ self.ctx.set_operator(cairo.OPERATOR_OVER
-                                  #~ if arc.level_polarity == 'dark'
-                                  #~ else cairo.OPERATOR_CLEAR)
-        #~ else:
-            #~ self.ctx.set_source_rgba(0.0, 0.0, 0.0, 1.0)
-            #~ self.ctx.set_operator(cairo.OPERATOR_CLEAR)
-        #~ self.ctx.set_line_width(width * self.scale[0])
-        #~ self.ctx.set_line_cap(cairo.LINE_CAP_ROUND)
-        #~ self.ctx.move_to(*start)  # You actually have to do this...
-        #~ if arc.direction == 'counterclockwise':
-            #~ self.ctx.arc(*center, radius=radius, angle1=angle1, angle2=angle2)
-        #~ else:
-            #~ self.ctx.arc_negative(*center, radius=radius,
-                                  #~ angle1=angle1, angle2=angle2)
-        #~ self.ctx.move_to(*end)  # ...lame
 
     def _new_render_layer(self, color=None, mirror=False):
         #~ print("_new_render_layer")
         pass
-#~ 
+
     def _flatten(self):
         self._merge_polygons()
         #~ self._save_polygons()
-#~ 
+
     def _paint_background(self, force=False):
         #~ print("_paint_background")
         pass

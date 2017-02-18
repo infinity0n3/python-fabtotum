@@ -119,6 +119,7 @@ def main():
         'holder-min-length' : 5,   # Path must be at least this long to include a holder. Use this to avoid putting holders on short segments.
         # Array (TODO)
         # Rotation (TODO)
+        'rotation'      : 0.0,      # Board rotation in degrees
         # Markers
         'markers' : [(70,23), (70,177), (164,177), (164,23)],
         # PCB
@@ -151,24 +152,15 @@ def main():
             shp.set_ignore_width(True)
             
         layer.cam_source.render( shp )
-        layer_shape[layer.layer_class] = shp
+        if layer.mirrored:
+            layer_shape[layer.layer_class+'_mirrored'] = shp
+        else:
+            layer_shape[layer.layer_class] = shp
         
         if (layer.layer_class == 'bottom' and config['flip-top-bottom'] == False) or (layer.layer_class == 'top' and config['flip-top-bottom'] == True):
             shp.mirror_x()
-        elif layer.layer_class == 'drill':
-            shp.mirror_x()
-        elif layer.layer_class == 'outline':
-            shp.set_ignore_width(True)
-            #~ if config['flip-top-bottom']:
-            shp.mirror_x()
-                
-            #~ shp_m = ShapelyContext()
-            #~ shp_m.set_ignore_width(True)
-            #~ layer.cam_source.render( shp_m )
-            #~ shp_m.mirror_x()
-            #~ layer_shape[layer.layer_class+'_mirror'] = shp_m
     
-    print "layers", layer_shape
+    #~ print "layers", layer_shape
     
     # Prepare copper layer milling
     idx=0
@@ -238,7 +230,12 @@ def main():
     # Prepare drilling
     for layer in pcb.drill_layers:
         for drill in layer.drills:
-            out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_'+str(drill)+'.gcode')
+            suffix = ''
+            if layer.mirrored in ['x', 'y']:
+                out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_'+str(drill)+'.gcode')
+                suffix = '_mirrored'
+            else:
+                out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_'+str(drill)+'_bottom.gcode')
             
             cnc = MillingPCB(out)
 
@@ -263,53 +260,30 @@ def main():
             for hole in layer.primitives:
                 if hole.diameter == drill:
                     p = hole.position
-                    cnc.drillAt(X=p[0], Y=p[1])
-            
-            # End code
-            cnc.stopMilling()
-            cnc.spindleOFF()
-
-    # Prepare drilling (mirrored)
-    for layer in pcb.drill_layers:
-        for drill in layer.drills:
-            out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_'+str(drill)+'_mirror.gcode')
-            
-            cnc = MillingPCB(out)
-
-            # Start code
-            cnc.setTravelSpeed    (    XY= config['travel-xy-speed'],
-                                    Z = config['travel-z-speed'])
-            cnc.setMillingSpeed        ( config['milling-xy-speed'] )
-            cnc.setDrillSpeed        ( config['drilling-z-speed'] )
-            cnc.setTravelHeight    ( config['travel-height'] )
-            cnc.setPlungeDepth        ( config['plunge-depth'] )
-            cnc.setSpindleSpeed        ( config['spindle-speed'] )
-
-            if config['use-continuity-probe']:
-                cnc.zeroZtoTool()
-            
-            cnc.zeroAll()
-            cnc.setAbsolute()
-            cnc.spindleON()
-            
-            # Drilling
-            cnc.addComment('Drill ' + str(drill) + 'mm' )
-            for hole in layer.primitives:
-                if hole.diameter == drill:
-                    p = hole.position
-                    cnc.drillAt(X=-p[0], Y=p[1])
+                    if layer.mirrored == 'x':
+                        cnc.drillAt(X=-p[0], Y=p[1])
+                    elif layer.mirrored == 'y':
+                        cnc.drillAt(X=p[0], Y=-p[1])
+                    else:
+                        cnc.drillAt(X=p[0], Y=p[1])
             
             # End code
             cnc.stopMilling()
             cnc.spindleOFF()
 
     # Prepare cutting
+    
     for layer in pcb.outline_layers:
-        out = GCodeOutput(app_args.output+'/'+layer.layer_class+'.gcode')
+        suffix = ''
+        if layer.mirrored in ['x', 'y']:
+            out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_bottom.gcode')
+            suffix = '_mirrored'
+        else:
+            out = GCodeOutput(app_args.output+'/'+layer.layer_class+'.gcode')
         
         figs = []
         
-        for fig in layer_shape[layer.layer_class].figs:
+        for fig in layer_shape[layer.layer_class+suffix].figs:
             figs.append( list(fig.coords) )
             
         with open('figs.json', 'w') as f:

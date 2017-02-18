@@ -164,24 +164,29 @@ class PCBLayer(object):
 
     """
     @classmethod
-    def from_cam(cls, camfile):
+    def from_cam(cls, camfile, mirrored=None):
         filename = camfile.filename
         layer_class = guess_layer_class(filename)
         if isinstance(camfile, ExcellonFile) or (layer_class == 'drill'):
-            return DrillLayer.from_cam(camfile)
+            return DrillLayer.from_cam(camfile, mirrored=mirrored)
         elif layer_class == 'internal':
             return InternalLayer.from_cam(camfile)
         if isinstance(camfile, IPCNetlist):
             layer_class = 'ipc_netlist'
-        return cls(filename, layer_class, camfile)
+        return cls(filename, layer_class, camfile, mirrored)
 
-    def __init__(self, filename=None, layer_class=None, cam_source=None, **kwargs):
+    def __init__(self, filename=None, layer_class=None, cam_source=None, mirrored=None, **kwargs):
         super(PCBLayer, self).__init__(**kwargs)
         self.filename = filename
         self.layer_class = layer_class
+        self.is_mirrored = mirrored
         self.cam_source = cam_source
         self.surface = None
         self.primitives = cam_source.primitives if cam_source is not None else []
+
+    @property
+    def mirrored(self):
+        return self.is_mirrored
 
     @property
     def bounds(self):
@@ -191,16 +196,16 @@ class PCBLayer(object):
             return None
 
     def __repr__(self):
-        return '<PCBLayer: {}>'.format(self.layer_class)
+        return '<PCBLayer: {} {}>'.format(self.layer_class, self.mirrored)
 
 
 class DrillLayer(PCBLayer):
     @classmethod
-    def from_cam(cls, camfile):
-        return cls(camfile.filename, camfile)
+    def from_cam(cls, camfile, mirrored):
+        return cls(camfile.filename, camfile, mirrored=mirrored)
 
-    def __init__(self, filename=None, cam_source=None, layers=None, **kwargs):
-        super(DrillLayer, self).__init__(filename, 'drill', cam_source, **kwargs)
+    def __init__(self, filename=None, cam_source=None, layers=None, mirrored=None, **kwargs):
+        super(DrillLayer, self).__init__(filename, 'drill', cam_source, mirrored=mirrored, **kwargs)
         self.layers = layers if layers is not None else ['top', 'bottom']
         
     @property
