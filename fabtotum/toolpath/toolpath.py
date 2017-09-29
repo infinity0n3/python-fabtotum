@@ -141,8 +141,12 @@ class ToolpathContext(object):
         self._tool_list.append(tool_d)
 
     def generate_paths(self, shapes, tool_d):
-        print("Add toolpath generation algorithm")
-        return None
+        """
+        @shapes Shapely shapes describing the path to be cut
+        @tool_d Tool diameter 
+        Toolpath generation function.
+        """
+        raise NotImplementedError('"generate_paths" function must be implemented')
     
     def connect_paths(self, paths, shapes, tool_d):
         tmp = paths[:]
@@ -289,15 +293,27 @@ class ToolpathContext(object):
                 
         return conn
 
+    def optimize(self, paths):
+        return paths
+
     def generate(self, shapes):
+        """
+        Generate toolpahs based on shapes input.
+        """
         print("Generating paths")
+        # Select the first tool
         tool_d = self._tool_list[0]
+        
         paths = self.generate_paths(shapes, tool_d)
+        
+        paths = self.optimize(paths)
+        
         if self.settings['connect']:
             print("Connecting paths")
+            # Future use for complete material removal toolpaths
             conn = self.connect_paths(paths, shapes, tool_d)
         else:
             conn = paths
-        #return (paths,conn)
+        
         return conn
         

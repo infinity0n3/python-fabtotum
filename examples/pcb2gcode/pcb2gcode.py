@@ -9,6 +9,9 @@ import os,sys
 import argparse
 import json
 
+import shapely.geometry as sg
+from shapely import affinity
+
 
 ################################ DEBUG #########################################
 try:
@@ -152,13 +155,20 @@ def main():
             shp.set_ignore_width(True)
             
         layer.cam_source.render( shp )
+        print layer
         if layer.mirrored:
+            print "- mirroring"
             layer_shape[layer.layer_class+'_mirrored'] = shp
+            shp.mirror_x()
         else:
             layer_shape[layer.layer_class] = shp
         
+        
+        
         if (layer.layer_class == 'bottom' and config['flip-top-bottom'] == False) or (layer.layer_class == 'top' and config['flip-top-bottom'] == True):
             shp.mirror_x()
+                
+        shp.rotate( float(config['rotation']) )
     
     #~ print "layers", layer_shape
     
@@ -232,10 +242,10 @@ def main():
         for drill in layer.drills:
             suffix = ''
             if layer.mirrored in ['x', 'y']:
-                out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_'+str(drill)+'.gcode')
+                out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_'+str(drill)+'_bottom.gcode')
                 suffix = '_mirrored'
             else:
-                out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_'+str(drill)+'_bottom.gcode')
+                out = GCodeOutput(app_args.output+'/'+layer.layer_class+'_'+str(drill)+'.gcode')
             
             cnc = MillingPCB(out)
 
@@ -259,13 +269,16 @@ def main():
             cnc.addComment('Drill ' + str(drill) + 'mm' )
             for hole in layer.primitives:
                 if hole.diameter == drill:
-                    p = hole.position
+                    p = sg.Point(hole.position)
+                                        
                     if layer.mirrored == 'x':
-                        cnc.drillAt(X=-p[0], Y=p[1])
+                        center=(0,0,0)
+                        p = affinity.scale(p, xfact=-1, yfact=1, origin=center)
                     elif layer.mirrored == 'y':
-                        cnc.drillAt(X=p[0], Y=-p[1])
-                    else:
-                        cnc.drillAt(X=p[0], Y=p[1])
+                        raise NotImplementedError("drill mirror-y not implemented")
+                    p = affinity.rotate(p, config['rotation'], origin=(0,0))
+                        
+                    cnc.drillAt(X=p.x, Y=p.y)
             
             # End code
             cnc.stopMilling()
@@ -281,9 +294,11 @@ def main():
         else:
             out = GCodeOutput(app_args.output+'/'+layer.layer_class+'.gcode')
         
+        layer_class = layer.layer_class+suffix
+        
         figs = []
         
-        for fig in layer_shape[layer.layer_class+suffix].figs:
+        for fig in layer_shape[layer_class].figs:
             figs.append( list(fig.coords) )
             
         with open('figs.json', 'w') as f:
@@ -291,13 +306,13 @@ def main():
         
         toolpath = IsolationToolpath(use_interior=False)
         toolpath.add_tool( config['cut-bit-diameter'] )
-        paths = toolpath.generate(layer_shape[layer.layer_class].figs)
+        paths = toolpath.generate(layer_shape[layer_class].figs)
 
         toolpath2 = HoldersToolpath()
         toolpath2.set_holder_params(holder_size = config['holder-size'],
                                      min_len = config['holder-min-length'] )
         toolpath2.add_tool( config['cut-bit-diameter'] )
-        paths2 = toolpath2.generate(layer_shape[layer.layer_class].figs)
+        paths2 = toolpath2.generate(layer_shape[layer_class].figs)
 
         print "TOOLPATHS", len(paths2)
 

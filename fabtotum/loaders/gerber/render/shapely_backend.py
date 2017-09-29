@@ -79,6 +79,13 @@ class ShapelyContext(GerberContext):
             tmp = affinity.scale(f, xfact=-1, yfact=1,origin=center)
             ofigs.append(tmp)
         self.figs = ofigs
+        
+    def rotate(self, angle = 0.0, origin = (0,0) ):
+        ofigs = []
+        for f in self.figs:
+            tmp = affinity.rotate(f, angle, origin=origin)
+            ofigs.append(tmp)
+        self.figs = ofigs
 
     def _render_line(self, line, color):
         #print("TODO: render line")
